@@ -5,18 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
@@ -39,6 +33,12 @@ namespace Project_CK
         const Double sin30 = 0.5;
         const Double tan30 = 0.57735;
         public S7Client plc;
+
+        const int DB_CMD = 33; // DB điều khiển
+        const int DB_FB = 18; // DB phản hồi
+        private int _seq = 0 ;
+        private System.Windows.Forms.Timer fbTimer;
+
 
         private VideoCapture _cap;
         private CancellationTokenSource _cts;
@@ -95,6 +95,24 @@ namespace Project_CK
             trackBar_zoom.Minimum = 0;  // fps thấp nhất
             trackBar_zoom.Maximum = 10;  // fps cao nhất
             trackBar_zoom.Value = 0;
+            numericUpDown_z.Minimum = -400;   // giới hạn nhỏ nhất
+            numericUpDown_z.Maximum = -200;
+            numericUpDown_z.Increment = 0.1M;
+            numericUpDown_x.Minimum = -100;   // giới hạn nhỏ nhất
+            numericUpDown_x.Maximum = 100;
+            numericUpDown_x.Increment = 0.1M;
+            numericUpDown_y.Minimum = -100;   // giới hạn nhỏ nhất
+            numericUpDown_y.Maximum = 100;
+            numericUpDown_y.Increment = 0.1M;
+            numericUpDown_vel.Minimum = 0;
+            numericUpDown_vel.Maximum = 500;
+            numericUpDown_y.Increment = 1;
+
+            System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
+            fbTimer = new System.Windows.Forms.Timer();
+            fbTimer.Interval = 200;
+            fbTimer.Tick += (s, e) => RefreshFeedbackUi();
+            fbTimer.Start();
 
             plcTimer = new WinTimer();
             plcTimer.Interval = 500;
@@ -200,7 +218,7 @@ namespace Project_CK
         }
         private void btn_connect_Click(object sender, EventArgs e)
         {
-            plcTimer.Start();
+            plcTimer.Start(); 
             string ip = combox_plc.Text.Trim();
             if (string.IsNullOrEmpty(ip))
             {
@@ -445,22 +463,6 @@ namespace Project_CK
             }
 
         }
-
-        private void btn_push_click(object sender, EventArgs e)
-        {
-            if (!plc.Connected)
-            {
-                MessageBox.Show("PLC chưa kết nối.");
-                return;
-            }
-            Double X_push = Convert.ToDouble(textBox_push_x.Text);
-            Double Y_push = Convert.ToDouble(textBox_push_y.Text);
-            Double Z_push = Convert.ToDouble(textBox_push_z.Text);
-            WriteReal(100, 0, (float)X_push);
-            WriteReal(100, 4, (float)Y_push);
-            WriteReal(100, 8, (float)Z_push);
-
-        }
         ////////////////////////////////
         public class YoloOnnxSafe
         {
@@ -691,7 +693,7 @@ namespace Project_CK
             int rc = plc.DBRead(db, byteOffset, 1, b);
             if (rc != 0) throw new Exception(plc.ErrorText(rc));
 
-            S7.SetBitAt( b, 0, bit, value);  // bit = 0..7 trong byte
+            S7.SetBitAt(b, 0, bit, value);  // bit = 0..7 trong byte
             rc = plc.DBWrite(db, byteOffset, 1, b);
             if (rc != 0) throw new Exception(plc.ErrorText(rc));
         }
@@ -718,7 +720,112 @@ namespace Project_CK
 
             return S7.GetRealAt(buf, 0);
         }
+        public void WriteDInt(int db, int byteOffset, int value)
+        {
+            byte[] buf = new byte[4];
+            S7.SetDIntAt(buf, 0, value);
+            int rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
+            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+        }
+        public int ReadDInt(int db, int byteOffset)
+        {
+            byte[] buf = new byte[4];
+            int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
+            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            return S7.GetDIntAt(buf, 0);
+        }
+
+        void PulseExec( int db, int ofsBitByte, int bit, int ms = 50)
+        {
+            var b = new byte[1]; plc.DBRead(db, ofsBitByte, 1, b);
+            b[0] = (byte)(b[0] | (1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
+            System.Threading.Thread.Sleep(ms);
+            b[0] = (byte)(b[0] & ~(1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
+        }
         ////////////////////////////////
+        // ====== Nội suy Cartesian → IK → gửi Absolute ======
+        private async Task MoveLinearCartesianJointStreamAsync(
+            double x0, double y0, double z0,
+            double x1, double y1, double z1,
+            double vTcp, int steps = 1000, int TsMs = 10)
+        {
+            double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+            double L = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (L < 1e-9) { await SendAbsAndWaitIkAsync(x1, y1, z1, vTcp); return; }
+
+            for (int i = 0; i <= steps; i++)
+            {
+                double s = (double)i / steps;
+                double x = x0 + dx * s;
+                double y = y0 + dy * s;
+                double z = z0 + dz * s;
+
+                double th1 = 0, th2 = 0, th3 = 0;
+                int st = delta_calcInverse(x, y, z, ref th1, ref th2, ref th3);
+                if (st != 0) throw new Exception("Điểm vượt workspace.");
+
+                await SendAbsAndWaitAsync((float)th1, (float)th2, (float)th3, (float)vTcp);
+                await Task.Delay(TsMs);
+            }
+        }
+
+        /// ======= Tốc độ nhỏ hơn 0 thì ======
+        private async Task SendAbsAndWaitIkAsync(double x, double y, double z, double vTcp)
+        {
+            double th1 = 0, th2 = 0, th3 = 0;
+            int st = delta_calcInverse(x, y, z, ref th1, ref th2, ref th3);
+            if (st != 0) throw new Exception("Điểm đích vượt workspace.");
+
+            await SendAbsAndWaitAsync((float)th1, (float)th2, (float)th3, (float)vTcp);
+        }
+
+        // ====== Gửi setpoint và chờ Done ======
+        private async Task SendAbsAndWaitAsync(float th1, float th2, float th3, float vel)
+        {
+            SendJointSetpoint(th1, th2, th3, vel);
+            //await Task.Delay(200);
+            DateTime t0 = DateTime.UtcNow;
+            while (true)
+            {
+                var fb = ReadFeedback();
+                if (fb.Error) throw new Exception("PLC báo lỗi.");
+                if (!fb.Done && !fb.Busy) break;
+                if ((DateTime.UtcNow - t0).TotalSeconds > 8) throw new Exception("Timeout chờ Done.");
+                await Task.Delay(20);
+            }
+        }
+
+        // ====== Gửi xuống DB_CMD ======
+        private void SendJointSetpoint(float th1, float th2, float th3, float vel)
+        {
+            
+            WriteReal(DB_CMD, 0, th1);
+            WriteReal(DB_CMD, 4, th2);
+            WriteReal(DB_CMD, 8, th3);
+            WriteReal(DB_CMD, 12, vel);
+            WriteDInt(DB_CMD, 16, ++_seq);
+
+        }
+        // ====== Feedback ======
+        private PlcFeedback ReadFeedback()
+        {
+            var fb = new PlcFeedback
+            {
+                Th1 = ReadReal(DB_FB, 0)/(-10),   // DBD0
+                Th2 = ReadReal(DB_FB, 4)/(-10),   // DBD4
+                Th3 = ReadReal(DB_FB, 8)/10,   // DBD8
+                Busy = ReadBoolBit(DB_FB, 12, 0), // DBX12.0
+                Done = ReadBoolBit(DB_FB, 12, 1), // DBX12.1
+                Error = ReadBoolBit(DB_FB, 12, 2)  // DBX12.2
+            };
+            return fb;
+        }
+        private class PlcFeedback
+        {
+            public float Th1, Th2, Th3;
+            public bool Busy, Done, Error;
+        }
+
         private void btn_home_click(object sender, EventArgs e)
         {
             if (!plc.Connected)
@@ -726,11 +833,54 @@ namespace Project_CK
                 MessageBox.Show("PLC chưa kết nối.");
                 return;
             }
-            Double Velocity = Convert.ToDouble(textBox_valuevelocity.Text);
-            WriteReal(33, 0, (float)Velocity);
-            WriteBoolBit(33, 4, 0, true);
-            WriteBoolBit(33, 4, 0, false);
-            
+            WriteReal(33, 12, (float)100.0);
+            WriteBoolBit(33, 20, 0, true);
+            WriteBoolBit(33, 20, 0, false);
+        }
+
+        private void RefreshFeedbackUi()
+        {
+            if (!plc.Connected) return;
+            try
+            {
+                var fb = ReadFeedback();
+                double x = 0, y = 0, z = 0;
+                int st = delta_calcForward(fb.Th1, fb.Th2, fb.Th3, ref x, ref y, ref z);
+                if (st == 0)
+                {
+                    textBox_ns_x.Text = x.ToString("0.00");
+                    textBox_ns_y.Text = y.ToString("0.00");
+                    textBox_ns_z.Text = z.ToString("0.00");
+                }
+            }
+            catch { }
+        }
+
+        private async void btn_exc_click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!plc.Connected) { MessageBox.Show("PLC chưa kết nối"); return; }
+                
+                double x1 = (double)numericUpDown_x.Value;
+                double y1 = (double)numericUpDown_y.Value;
+                double z1 = (double)numericUpDown_z.Value;
+                double vTcp = (double)numericUpDown_vel.Value;
+
+                // Lấy điểm bắt đầu từ feedback (joint → FK)
+                var fb = ReadFeedback();
+                double x0 = 0, y0 = 0, z0 = 0;
+                int stFK = delta_calcForward(fb.Th1, fb.Th2, fb.Th3, ref x0, ref y0, ref z0);
+                if (stFK != 0) { MessageBox.Show("FK lỗi từ feedback"); return; }
+
+                await MoveLinearCartesianJointStreamAsync(x0, y0, z0, x1, y1, z1, vTcp, TsMs: 20);
+                MessageBox.Show("✅ Đã tới đích.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi: " + ex.Message);
+            }
+
         }
     }
 }

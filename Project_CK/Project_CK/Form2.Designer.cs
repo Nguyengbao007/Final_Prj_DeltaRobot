@@ -83,21 +83,19 @@
             button2 = new Button();
             button1 = new Button();
             groupBox6 = new GroupBox();
-            btn_home = new Button();
-            groupBox7 = new GroupBox();
+            textBox_ns_z = new TextBox();
+            textBox_ns_y = new TextBox();
+            textBox_ns_x = new TextBox();
+            numericUpDown_vel = new NumericUpDown();
+            btn_exc = new Button();
             label21 = new Label();
-            label22 = new Label();
-            label23 = new Label();
-            label18 = new Label();
-            label19 = new Label();
+            numericUpDown_z = new NumericUpDown();
             label20 = new Label();
-            button8 = new Button();
-            textBox_viewpush_theta3 = new TextBox();
-            textBox_viewpush_theta2 = new TextBox();
-            textBox_viewpush_theta1 = new TextBox();
-            textBox_push_z = new TextBox();
-            textBox_push_y = new TextBox();
-            textBox_push_x = new TextBox();
+            numericUpDown_y = new NumericUpDown();
+            label19 = new Label();
+            label18 = new Label();
+            numericUpDown_x = new NumericUpDown();
+            btn_home = new Button();
             groupBox8 = new GroupBox();
             label26 = new Label();
             textBox_viewplc_z = new TextBox();
@@ -105,8 +103,6 @@
             textBox_viewplc_y = new TextBox();
             label24 = new Label();
             textBox_viewplc_x = new TextBox();
-            textBox_valuevelocity = new TextBox();
-            label27 = new Label();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -118,7 +114,10 @@
             ((System.ComponentModel.ISupportInitialize)trackBar_dosang).BeginInit();
             groupbox.SuspendLayout();
             groupBox6.SuspendLayout();
-            groupBox7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_vel).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_z).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_y).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_x).BeginInit();
             groupBox8.SuspendLayout();
             SuspendLayout();
             // 
@@ -588,7 +587,7 @@
             groupbox.Controls.Add(button3);
             groupbox.Controls.Add(button2);
             groupbox.Controls.Add(button1);
-            groupbox.Location = new Point(476, 23);
+            groupbox.Location = new Point(537, 21);
             groupbox.Name = "groupbox";
             groupbox.Size = new Size(208, 124);
             groupbox.TabIndex = 10;
@@ -657,159 +656,137 @@
             // 
             // groupBox6
             // 
-            groupBox6.Controls.Add(label27);
-            groupBox6.Controls.Add(textBox_valuevelocity);
+            groupBox6.Controls.Add(textBox_ns_z);
+            groupBox6.Controls.Add(textBox_ns_y);
+            groupBox6.Controls.Add(textBox_ns_x);
+            groupBox6.Controls.Add(numericUpDown_vel);
+            groupBox6.Controls.Add(btn_exc);
+            groupBox6.Controls.Add(label21);
+            groupBox6.Controls.Add(numericUpDown_z);
+            groupBox6.Controls.Add(label20);
+            groupBox6.Controls.Add(numericUpDown_y);
+            groupBox6.Controls.Add(label19);
+            groupBox6.Controls.Add(label18);
+            groupBox6.Controls.Add(numericUpDown_x);
             groupBox6.Controls.Add(btn_home);
             groupBox6.Location = new Point(3, 193);
             groupBox6.Name = "groupBox6";
-            groupBox6.Size = new Size(328, 163);
+            groupBox6.Size = new Size(403, 183);
             groupBox6.TabIndex = 11;
             groupBox6.TabStop = false;
             groupBox6.Text = "Control Manual";
             // 
-            // btn_home
+            // textBox_ns_z
             // 
-            btn_home.Location = new Point(6, 22);
-            btn_home.Name = "btn_home";
-            btn_home.Size = new Size(75, 23);
-            btn_home.TabIndex = 0;
-            btn_home.Text = "Home";
-            btn_home.UseVisualStyleBackColor = true;
-            btn_home.Click += btn_home_click;
+            textBox_ns_z.Location = new Point(273, 108);
+            textBox_ns_z.Name = "textBox_ns_z";
+            textBox_ns_z.Size = new Size(100, 23);
+            textBox_ns_z.TabIndex = 23;
             // 
-            // groupBox7
+            // textBox_ns_y
             // 
-            groupBox7.Controls.Add(label21);
-            groupBox7.Controls.Add(label22);
-            groupBox7.Controls.Add(label23);
-            groupBox7.Controls.Add(label18);
-            groupBox7.Controls.Add(label19);
-            groupBox7.Controls.Add(label20);
-            groupBox7.Controls.Add(button8);
-            groupBox7.Controls.Add(textBox_viewpush_theta3);
-            groupBox7.Controls.Add(textBox_viewpush_theta2);
-            groupBox7.Controls.Add(textBox_viewpush_theta1);
-            groupBox7.Controls.Add(textBox_push_z);
-            groupBox7.Controls.Add(textBox_push_y);
-            groupBox7.Controls.Add(textBox_push_x);
-            groupBox7.Location = new Point(357, 324);
-            groupBox7.Name = "groupBox7";
-            groupBox7.Size = new Size(408, 164);
-            groupBox7.TabIndex = 12;
-            groupBox7.TabStop = false;
-            groupBox7.Text = "Test";
+            textBox_ns_y.Location = new Point(273, 73);
+            textBox_ns_y.Name = "textBox_ns_y";
+            textBox_ns_y.Size = new Size(100, 23);
+            textBox_ns_y.TabIndex = 22;
+            // 
+            // textBox_ns_x
+            // 
+            textBox_ns_x.Location = new Point(273, 42);
+            textBox_ns_x.Name = "textBox_ns_x";
+            textBox_ns_x.Size = new Size(100, 23);
+            textBox_ns_x.TabIndex = 21;
+            // 
+            // numericUpDown_vel
+            // 
+            numericUpDown_vel.Location = new Point(67, 145);
+            numericUpDown_vel.Name = "numericUpDown_vel";
+            numericUpDown_vel.Size = new Size(94, 23);
+            numericUpDown_vel.TabIndex = 20;
+            // 
+            // btn_exc
+            // 
+            btn_exc.Location = new Point(96, 22);
+            btn_exc.Name = "btn_exc";
+            btn_exc.Size = new Size(75, 23);
+            btn_exc.TabIndex = 19;
+            btn_exc.Text = "EXECUTE";
+            btn_exc.UseVisualStyleBackColor = true;
+            btn_exc.Click += btn_exc_click;
             // 
             // label21
             // 
             label21.AutoSize = true;
             label21.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label21.Location = new Point(228, 97);
+            label21.Location = new Point(6, 108);
             label21.Name = "label21";
-            label21.Size = new Size(58, 17);
-            label21.TabIndex = 15;
-            label21.Text = "Theta3 :";
+            label21.Size = new Size(54, 17);
+            label21.TabIndex = 18;
+            label21.Text = "Axis Z :";
             // 
-            // label22
+            // numericUpDown_z
             // 
-            label22.AutoSize = true;
-            label22.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label22.Location = new Point(228, 66);
-            label22.Name = "label22";
-            label22.Size = new Size(58, 17);
-            label22.TabIndex = 14;
-            label22.Text = "Theta2 :";
-            // 
-            // label23
-            // 
-            label23.AutoSize = true;
-            label23.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label23.Location = new Point(228, 35);
-            label23.Name = "label23";
-            label23.Size = new Size(58, 17);
-            label23.TabIndex = 13;
-            label23.Text = "Theta1 :";
-            // 
-            // label18
-            // 
-            label18.AutoSize = true;
-            label18.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label18.Location = new Point(5, 93);
-            label18.Name = "label18";
-            label18.Size = new Size(24, 17);
-            label18.TabIndex = 12;
-            label18.Text = "Z :";
-            // 
-            // label19
-            // 
-            label19.AutoSize = true;
-            label19.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label19.Location = new Point(6, 62);
-            label19.Name = "label19";
-            label19.Size = new Size(24, 17);
-            label19.TabIndex = 11;
-            label19.Text = "Y :";
+            numericUpDown_z.DecimalPlaces = 2;
+            numericUpDown_z.Location = new Point(77, 108);
+            numericUpDown_z.Name = "numericUpDown_z";
+            numericUpDown_z.Size = new Size(90, 23);
+            numericUpDown_z.TabIndex = 17;
             // 
             // label20
             // 
             label20.AutoSize = true;
             label20.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label20.Location = new Point(5, 31);
+            label20.Location = new Point(6, 79);
             label20.Name = "label20";
-            label20.Size = new Size(25, 17);
-            label20.TabIndex = 10;
-            label20.Text = "X :";
+            label20.Size = new Size(54, 17);
+            label20.TabIndex = 16;
+            label20.Text = "Axis Y :";
             // 
-            // button8
+            // numericUpDown_y
             // 
-            button8.Location = new Point(138, 60);
-            button8.Name = "button8";
-            button8.Size = new Size(75, 23);
-            button8.TabIndex = 6;
-            button8.Text = "push";
-            button8.UseVisualStyleBackColor = true;
-            button8.Click += btn_push_click;
+            numericUpDown_y.DecimalPlaces = 2;
+            numericUpDown_y.Location = new Point(77, 79);
+            numericUpDown_y.Name = "numericUpDown_y";
+            numericUpDown_y.Size = new Size(90, 23);
+            numericUpDown_y.TabIndex = 15;
             // 
-            // textBox_viewpush_theta3
+            // label19
             // 
-            textBox_viewpush_theta3.Location = new Point(292, 90);
-            textBox_viewpush_theta3.Name = "textBox_viewpush_theta3";
-            textBox_viewpush_theta3.Size = new Size(100, 23);
-            textBox_viewpush_theta3.TabIndex = 5;
+            label19.AutoSize = true;
+            label19.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label19.Location = new Point(6, 50);
+            label19.Name = "label19";
+            label19.Size = new Size(55, 17);
+            label19.TabIndex = 14;
+            label19.Text = "Axis X :";
             // 
-            // textBox_viewpush_theta2
+            // label18
             // 
-            textBox_viewpush_theta2.Location = new Point(292, 61);
-            textBox_viewpush_theta2.Name = "textBox_viewpush_theta2";
-            textBox_viewpush_theta2.Size = new Size(100, 23);
-            textBox_viewpush_theta2.TabIndex = 4;
+            label18.AutoSize = true;
+            label18.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label18.Location = new Point(0, 151);
+            label18.Name = "label18";
+            label18.Size = new Size(65, 17);
+            label18.TabIndex = 13;
+            label18.Text = "Velocity :";
             // 
-            // textBox_viewpush_theta1
+            // numericUpDown_x
             // 
-            textBox_viewpush_theta1.Location = new Point(292, 32);
-            textBox_viewpush_theta1.Name = "textBox_viewpush_theta1";
-            textBox_viewpush_theta1.Size = new Size(100, 23);
-            textBox_viewpush_theta1.TabIndex = 3;
+            numericUpDown_x.DecimalPlaces = 2;
+            numericUpDown_x.Location = new Point(77, 50);
+            numericUpDown_x.Name = "numericUpDown_x";
+            numericUpDown_x.Size = new Size(90, 23);
+            numericUpDown_x.TabIndex = 12;
             // 
-            // textBox_push_z
+            // btn_home
             // 
-            textBox_push_z.Location = new Point(28, 89);
-            textBox_push_z.Name = "textBox_push_z";
-            textBox_push_z.Size = new Size(100, 23);
-            textBox_push_z.TabIndex = 2;
-            // 
-            // textBox_push_y
-            // 
-            textBox_push_y.Location = new Point(28, 60);
-            textBox_push_y.Name = "textBox_push_y";
-            textBox_push_y.Size = new Size(100, 23);
-            textBox_push_y.TabIndex = 1;
-            // 
-            // textBox_push_x
-            // 
-            textBox_push_x.Location = new Point(28, 31);
-            textBox_push_x.Name = "textBox_push_x";
-            textBox_push_x.Size = new Size(100, 23);
-            textBox_push_x.TabIndex = 0;
+            btn_home.Location = new Point(15, 22);
+            btn_home.Name = "btn_home";
+            btn_home.Size = new Size(75, 23);
+            btn_home.TabIndex = 0;
+            btn_home.Text = "HOME";
+            btn_home.UseVisualStyleBackColor = true;
+            btn_home.Click += btn_home_click;
             // 
             // groupBox8
             // 
@@ -878,30 +855,12 @@
             textBox_viewplc_x.Size = new Size(100, 25);
             textBox_viewplc_x.TabIndex = 11;
             // 
-            // textBox_valuevelocity
-            // 
-            textBox_valuevelocity.Location = new Point(67, 131);
-            textBox_valuevelocity.Name = "textBox_valuevelocity";
-            textBox_valuevelocity.Size = new Size(100, 23);
-            textBox_valuevelocity.TabIndex = 1;
-            // 
-            // label27
-            // 
-            label27.AutoSize = true;
-            label27.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label27.Location = new Point(3, 135);
-            label27.Name = "label27";
-            label27.Size = new Size(65, 17);
-            label27.TabIndex = 11;
-            label27.Text = "Velocity :";
-            // 
             // Form2
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1426, 654);
             Controls.Add(groupBox8);
-            Controls.Add(groupBox7);
             Controls.Add(groupBox6);
             Controls.Add(groupbox);
             Controls.Add(groupBox5);
@@ -929,8 +888,10 @@
             groupbox.ResumeLayout(false);
             groupBox6.ResumeLayout(false);
             groupBox6.PerformLayout();
-            groupBox7.ResumeLayout(false);
-            groupBox7.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_vel).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_z).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_y).EndInit();
+            ((System.ComponentModel.ISupportInitialize)numericUpDown_x).EndInit();
             groupBox8.ResumeLayout(false);
             groupBox8.PerformLayout();
             ResumeLayout(false);
@@ -993,20 +954,6 @@
         private Button button1;
         private GroupBox groupBox6;
         private Button btn_home;
-        private GroupBox groupBox7;
-        private Label label21;
-        private Label label22;
-        private Label label23;
-        private Label label18;
-        private Label label19;
-        private Label label20;
-        private Button button8;
-        private TextBox textBox_viewpush_theta3;
-        private TextBox textBox_viewpush_theta2;
-        private TextBox textBox_viewpush_theta1;
-        private TextBox textBox_push_z;
-        private TextBox textBox_push_y;
-        private TextBox textBox_push_x;
         private GroupBox groupBox8;
         private Label label26;
         private TextBox textBox_viewplc_z;
@@ -1014,7 +961,17 @@
         private TextBox textBox_viewplc_y;
         private Label label24;
         private TextBox textBox_viewplc_x;
-        private Label label27;
-        private TextBox textBox_valuevelocity;
+        private NumericUpDown numericUpDown_x;
+        private Label label21;
+        private NumericUpDown numericUpDown_z;
+        private Label label20;
+        private NumericUpDown numericUpDown_y;
+        private Label label19;
+        private Label label18;
+        private Button btn_exc;
+        private NumericUpDown numericUpDown_vel;
+        private TextBox textBox_ns_z;
+        private TextBox textBox_ns_y;
+        private TextBox textBox_ns_x;
     }
 }
