@@ -13,7 +13,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+//using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using WinTimer = System.Windows.Forms.Timer;
 
 
@@ -33,12 +33,12 @@ namespace Project_CK
         const Double sin30 = 0.5;
         const Double tan30 = 0.57735;
         public S7Client plc;
-
+        /*
         const int DB_CMD = 33; // DB điều khiển
         const int DB_FB = 18; // DB phản hồi
-        private int _seq = 0 ;
+        private int _seq = 0;
         private System.Windows.Forms.Timer fbTimer;
-
+        */
 
         private VideoCapture _cap;
         private CancellationTokenSource _cts;
@@ -107,13 +107,13 @@ namespace Project_CK
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 500;
             numericUpDown_y.Increment = 1;
-
+            /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
             fbTimer.Interval = 200;
             fbTimer.Tick += (s, e) => RefreshFeedbackUi();
             fbTimer.Start();
-
+            */
             plcTimer = new WinTimer();
             plcTimer.Interval = 500;
             plcTimer.Tick += viewplc;
@@ -218,7 +218,7 @@ namespace Project_CK
         }
         private void btn_connect_Click(object sender, EventArgs e)
         {
-            plcTimer.Start(); 
+            plcTimer.Start();
             string ip = combox_plc.Text.Trim();
             if (string.IsNullOrEmpty(ip))
             {
@@ -735,19 +735,20 @@ namespace Project_CK
             return S7.GetDIntAt(buf, 0);
         }
 
-        void PulseExec( int db, int ofsBitByte, int bit, int ms = 50)
+        void PulseExec(int db, int ofsBitByte, int bit, int ms = 50)
         {
             var b = new byte[1]; plc.DBRead(db, ofsBitByte, 1, b);
             b[0] = (byte)(b[0] | (1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
             System.Threading.Thread.Sleep(ms);
             b[0] = (byte)(b[0] & ~(1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
         }
+        /*
         ////////////////////////////////
         // ====== Nội suy Cartesian → IK → gửi Absolute ======
         private async Task MoveLinearCartesianJointStreamAsync(
             double x0, double y0, double z0,
             double x1, double y1, double z1,
-            double vTcp, int steps = 1000, int TsMs = 10)
+            double vTcp, int steps = 10, int TsMs = 0)
         {
             double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
             double L = Math.Sqrt(dx * dx + dy * dy + dz * dz);
@@ -784,21 +785,21 @@ namespace Project_CK
         {
             SendJointSetpoint(th1, th2, th3, vel);
             //await Task.Delay(200);
-            DateTime t0 = DateTime.UtcNow;
-            while (true)
-            {
-                var fb = ReadFeedback();
-                if (fb.Error) throw new Exception("PLC báo lỗi.");
-                if (!fb.Done && !fb.Busy) break;
-                if ((DateTime.UtcNow - t0).TotalSeconds > 8) throw new Exception("Timeout chờ Done.");
-                await Task.Delay(20);
-            }
+            //  DateTime t0 = DateTime.UtcNow;
+            //while (true)
+            //  {
+            // var fb = ReadFeedback();
+            // if (fb.Error) throw new Exception("PLC báo lỗi.");
+            // if (!fb.Done && !fb.Busy) break;
+            // if ((DateTime.UtcNow - t0).TotalSeconds > 8) throw new Exception("Timeout chờ Done.");
+            // await Task.Delay(20);
+            // }
         }
 
         // ====== Gửi xuống DB_CMD ======
         private void SendJointSetpoint(float th1, float th2, float th3, float vel)
         {
-            
+
             WriteReal(DB_CMD, 0, th1);
             WriteReal(DB_CMD, 4, th2);
             WriteReal(DB_CMD, 8, th3);
@@ -811,9 +812,9 @@ namespace Project_CK
         {
             var fb = new PlcFeedback
             {
-                Th1 = ReadReal(DB_FB, 0)/(-10),   // DBD0
-                Th2 = ReadReal(DB_FB, 4)/(-10),   // DBD4
-                Th3 = ReadReal(DB_FB, 8)/10,   // DBD8
+                Th1 = ReadReal(DB_FB, 0) / (-10),   // DBD0
+                Th2 = ReadReal(DB_FB, 4) / (-10),   // DBD4
+                Th3 = ReadReal(DB_FB, 8) / 10,   // DBD8
                 Busy = ReadBoolBit(DB_FB, 12, 0), // DBX12.0
                 Done = ReadBoolBit(DB_FB, 12, 1), // DBX12.1
                 Error = ReadBoolBit(DB_FB, 12, 2)  // DBX12.2
@@ -826,17 +827,7 @@ namespace Project_CK
             public bool Busy, Done, Error;
         }
 
-        private void btn_home_click(object sender, EventArgs e)
-        {
-            if (!plc.Connected)
-            {
-                MessageBox.Show("PLC chưa kết nối.");
-                return;
-            }
-            WriteReal(33, 12, (float)100.0);
-            WriteBoolBit(33, 20, 0, true);
-            WriteBoolBit(33, 20, 0, false);
-        }
+      
 
         private void RefreshFeedbackUi()
         {
@@ -856,12 +847,12 @@ namespace Project_CK
             catch { }
         }
 
-        private async void btn_exc_click(object sender, EventArgs e)
+        private async void btn_exc_click_ns(object sender, EventArgs e)
         {
             try
             {
                 if (!plc.Connected) { MessageBox.Show("PLC chưa kết nối"); return; }
-                
+
                 double x1 = (double)numericUpDown_x.Value;
                 double y1 = (double)numericUpDown_y.Value;
                 double z1 = (double)numericUpDown_z.Value;
@@ -881,6 +872,31 @@ namespace Project_CK
                 MessageBox.Show("Lỗi: " + ex.Message);
             }
 
+        }*/
+        private async void btn_exc_click(object sender, EventArgs e)
+        {
+            double x1 = (double)numericUpDown_x.Value;
+            double y1 = (double)numericUpDown_y.Value;
+            double z1 = (double)numericUpDown_z.Value;
+            double vTcp = (double)numericUpDown_vel.Value;
+            WriteReal(33, 0, (float)x1);
+            WriteReal(33, 4, (float)y1);
+            WriteReal(33, 8, (float)z1);
+            WriteReal(33, 12, (float)vTcp);
+            WriteBoolBit(33, 20, 3, true);
+
+
+        }
+        private void btn_home_click(object sender, EventArgs e)
+        {
+            if (!plc.Connected)
+            {
+                MessageBox.Show("PLC chưa kết nối.");
+                return;
+            }
+            WriteReal(33, 12, (float)100.0);
+            WriteBoolBit(33, 20, 0, true);
+            WriteBoolBit(33, 20, 0, false);
         }
     }
 }
