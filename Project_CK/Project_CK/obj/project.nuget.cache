@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7VDOR+gYZss=",
+  "dgSpecHash": "q9gb7f3BAUA=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Hoang\\Documents\\Project_CK\\Project_CK\\Project_CK.csproj",
+  "projectFilePath": "C:\\Users\\Hoang\\Documents\\IMAGE DATN\\Project_CK\\Project_CK\\Project_CK.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Hoang\\.nuget\\packages\\emgu.cv\\4.12.0.5764\\emgu.cv.4.12.0.5764.nupkg.sha512",
     "C:\\Users\\Hoang\\.nuget\\packages\\emgu.cv.bitmap\\4.12.0.5764\\emgu.cv.bitmap.4.12.0.5764.nupkg.sha512",

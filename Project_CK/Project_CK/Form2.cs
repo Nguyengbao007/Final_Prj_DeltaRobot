@@ -46,19 +46,39 @@ namespace Project_CK
         private System.Windows.Forms.Timer _uiTimer;
 
         private YoloOnnxSafe _yolo;
-        private readonly string[] _coco = new string[] {
-     "person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light",
-     "fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow",
-    "elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee",
-     "skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket",
-     "bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot",
-     "hot dog","pizza","donut","cake","chair","couch","potted plant","bed","dining table","toilet","tv","laptop","mouse",
-     "remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase",
-     "scissors","teddy bear","hair drier","toothbrush"
-        };
+        private readonly string[] _labels = { "black", "chocolate", "milk" };
+        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx";
 
         private WinTimer plcTimer;
+        private void EnsureYoloLoaded()
+        {
+            if (_yolo != null) return;
 
+            if (!System.IO.File.Exists(MODEL_PATH))
+            {
+                MessageBox.Show($"Không tìm thấy model: {MODEL_PATH}");
+                return;
+            }
+
+            try
+            {
+                _yolo = new YoloOnnxSafe(
+                    onnxPath: MODEL_PATH,
+                    classNames: _labels,
+                    useDirectML: false,   // bật true nếu bạn có DML GPU
+                    inputW: 640, inputH: 640
+                )
+                {
+                    ScoreThresh = 0.30f,
+                    NmsThresh = 0.45f
+                };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Load YOLO thất bại: " + ex.Message);
+                _yolo = null;
+            }
+        }
         // shared khung hình mới nhất để UI lấy
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
 
@@ -68,12 +88,18 @@ namespace Project_CK
         {
             InitializeComponent();
             plc = new S7Client();
-
-            _yolo = new YoloOnnxSafe("yolov8n.onnx", _coco, useDirectML: false, inputW: 640, inputH: 640)
+            var labels = new[] { "black", "milk", "chocolate" };
+            var yolo = new YoloOnnxSafe(
+                onnxPath: @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx",
+                classNames: labels,
+                useDirectML: false,   // bật true nếu bạn có DML GPU
+                inputW: 640, inputH: 640
+            )
             {
-                ScoreThresh = 0.25f,
+                ScoreThresh = 0.30f,
                 NmsThresh = 0.45f
             };
+
 
             // cấu hình combobox PLC
             combox_plc.Items.Add("192.168.0.1");   // ví dụ IP S7-1200
@@ -280,15 +306,17 @@ namespace Project_CK
         {
             if (_cap != null) return;
 
+            // đảm bảo YOLO đã nạp (hoặc ít nhất thử nạp)
+            EnsureYoloLoaded();
+
             _cap = new VideoCapture(CAM_INDEX, VideoCapture.API.DShow);
             try { _cap.Set(CapProp.FrameWidth, WIDTH); } catch { }
             try { _cap.Set(CapProp.FrameHeight, HEIGHT); } catch { }
             try { _cap.Set(CapProp.Fps, TARGET_FPS); } catch { }
-            try { _cap.Set(CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G')); } catch { } // giúp giữ FPS với UVC
+            try { _cap.Set(CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G')); } catch { }
 
             _cts = new CancellationTokenSource();
 
-            // Luồng capture: đọc liên tục, YOLO mỗi n khung để nhẹ máy
             _captureTask = Task.Run(() =>
             {
                 using (var frame = new Mat())
@@ -301,24 +329,38 @@ namespace Project_CK
                         using var srcBmp = frame.ToBitmap();
                         var drawBmp = (Bitmap)srcBmp.Clone();
 
-                        // Để nhẹ máy: detect mỗi 2 khung (bạn có thể đổi %1 để detect mọi khung)
-                        if ((++frameCount % 1) == 0)
+                        // chỉ detect khi có _yolo
+                        if (_yolo != null)
                         {
-                            var dets = _yolo.Infer(srcBmp);
-
-                            using var g = Graphics.FromImage(drawBmp);
-                            using var pen = new Pen(Color.Lime, 2);
-                            using var font = new Font("Segoe UI", 9);
-
-                            foreach (var d in dets)
+                            // nhẹ máy: mỗi 1/2/3 khung...
+                            if ((++frameCount % 1) == 0)
                             {
-                                g.DrawRectangle(pen, d.Rect.X, d.Rect.Y, d.Rect.Width, d.Rect.Height);
-                                var text = $"{d.Label} {d.Score:0.00}";
-                                var sz = g.MeasureString(text, font);
-                                g.FillRectangle(Brushes.Black, d.Rect.X, d.Rect.Y - sz.Height, sz.Width, sz.Height);
-                                g.DrawString(text, font, Brushes.Yellow, d.Rect.X, d.Rect.Y - sz.Height);
+                                try
+                                {
+                                    var dets = _yolo.Infer(srcBmp);
+
+                                    using var g = Graphics.FromImage(drawBmp);
+                                    using var pen = new Pen(Color.Lime, 2);
+                                    using var font = new Font("Segoe UI", 9);
+
+                                    foreach (var d in dets)
+                                    {
+                                        g.DrawRectangle(pen, d.Rect.X, d.Rect.Y, d.Rect.Width, d.Rect.Height);
+                                        var text = $"{d.Label} {d.Score:0.00}";
+                                        var sz = g.MeasureString(text, font);
+                                        g.FillRectangle(Brushes.Black, d.Rect.X, d.Rect.Y - sz.Height, sz.Width, sz.Height);
+                                        g.DrawString(text, font, Brushes.Yellow, d.Rect.X, d.Rect.Y - sz.Height);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    // không làm app sập nếu model/inference lỗi
+                                    // (tùy bạn: log ra hoặc MessageBox một lần)
+                                    System.Diagnostics.Debug.WriteLine("YOLO error: " + ex.Message);
+                                }
                             }
                         }
+                        // else: chưa nạp được model → chỉ hiển thị khung gốc
 
                         var old = Interlocked.Exchange(ref _latestBmp, drawBmp);
                         old?.Dispose();
@@ -326,7 +368,6 @@ namespace Project_CK
                 }
             });
 
-            // UI vẽ ~30 fps (tách khỏi capture)
             _uiTimer = new System.Windows.Forms.Timer { Interval = 1000 / TARGET_FPS };
             _uiTimer.Tick += (s, ev) =>
             {
@@ -474,26 +515,19 @@ namespace Project_CK
             private readonly string _outputName;
             private readonly string[] _names;
 
-            public float ScoreThresh { get; set; } = 0.1f;
+            public float ScoreThresh { get; set; } = 0.30f; // sau sigmoid
             public float NmsThresh { get; set; } = 0.45f;
 
             public YoloOnnxSafe(string onnxPath, string[] classNames, bool useDirectML = false, int inputW = 640, int inputH = 640)
             {
                 var opt = new SessionOptions();
-                if (useDirectML)
-                {
-                    // Cần Microsoft.ML.OnnxRuntime.DirectML
-                    opt.AppendExecutionProvider_DML();
-                }
-                else
-                {
-                    opt.AppendExecutionProvider_CPU();
-                }
+                if (useDirectML) opt.AppendExecutionProvider_DML();
+                else opt.AppendExecutionProvider_CPU();
 
                 _sess = new InferenceSession(onnxPath, opt);
                 _inpW = inputW; _inpH = inputH;
                 _inputName = _sess.InputMetadata.Keys.First();
-                _outputName = PickOutputName(_sess);
+                _outputName = _sess.OutputMetadata.Keys.First(); // YOLOv8 thường chỉ 1 output
                 _names = classNames ?? Array.Empty<string>();
             }
 
@@ -501,8 +535,9 @@ namespace Project_CK
             {
                 var (resized, scale, padX, padY) = Letterbox(bgr, _inpW, _inpH);
 
+                // BGR -> RGB, [1,3,H,W], 0..1
                 var input = new DenseTensor<float>(new[] { 1, 3, _inpH, _inpW });
-                var data = BitmapToBytes24(resized); // BGR bytes
+                var data = BitmapToBytes24(resized);
                 int idx = 0;
                 for (int y = 0; y < _inpH; y++)
                 {
@@ -516,18 +551,11 @@ namespace Project_CK
                 }
                 resized.Dispose();
 
-                // ✅ Không dùng using var ở đây nữa
-                var inputs = new List<NamedOnnxValue>
-    {
-        NamedOnnxValue.CreateFromTensor(_inputName, input)
-    };
-
-                // ✅ Chỉ cần using cho results thôi
+                var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(_inputName, input) };
                 using var results = _sess.Run(inputs);
-
                 var t = results.First(o => o.Name == _outputName).AsTensor<float>();
 
-                var dets = ParseDetections(t, scale, padX, padY, bgr.Width, bgr.Height);
+                var dets = ParseDetectionsYolov8(t, scale, padX, padY, bgr.Width, bgr.Height);
                 return Nms(dets, NmsThresh);
             }
 
@@ -560,56 +588,70 @@ namespace Project_CK
                 return buffer;
             }
 
-            private static string PickOutputName(InferenceSession s)
-                => s.OutputMetadata.Keys.First(); // đa số model Ultralytics có 1 output; nếu nhiều, chọn cái đầu
-
-            private System.Collections.Generic.List<Det> ParseDetections(Tensor<float> t, float scale, int padX, int padY, int origW, int origH)
+            private List<Det> ParseDetectionsYolov8(Tensor<float> t, float scale, int padX, int padY, int origW, int origH)
             {
-                var list = new System.Collections.Generic.List<Det>();
+                var list = new List<Det>();
+                if (t.Dimensions.Length != 3) return list;
 
-                if (t.Dimensions.Length == 3 && t.Dimensions[1] == 84) // [1,84,8400]
+                int d1 = t.Dimensions[1];
+                int d2 = t.Dimensions[2];
+
+                // YOLOv8: output thường là [1, C, N] (CxN) hoặc [1, N, C] (NxC), không objectness
+                bool isCxN = d1 <= d2;      // C nhỏ hơn N
+                int C = isCxN ? d1 : d2;    // 4 + numClasses
+                int N = isCxN ? d2 : d1;
+
+                int clsStart = 4;
+                int numClasses = C - clsStart;
+                if (numClasses <= 0) return list;
+
+                // Kiểm tra cần sigmoid hay không (nếu là logits)
+                int probe = Math.Min(N, 200);
+                float pMax = float.NegativeInfinity, pMin = float.PositiveInfinity;
+                for (int i = 0; i < probe; i++)
                 {
-                    int num = t.Dimensions[2];
-                    for (int i = 0; i < num; i++)
+                    for (int c = clsStart; c < C; c++)
                     {
-                        float x = t[0, 0, i], y = t[0, 1, i], w = t[0, 2, i], h = t[0, 3, i];
-                        int best = -1; float conf = 0f;
-                        for (int c = 4; c < 84; c++)
-                        {
-                            float s = t[0, c, i];
-                            if (s > conf) { conf = s; best = c - 4; }
-                        }
-                        if (conf < ScoreThresh) continue;
-
-                        var rect = UnletterBox(x, y, w, h, scale, padX, padY, origW, origH);
-                        string label = (best >= 0 && best < _names.Length) ? _names[best] : $"id{best}";
-                        list.Add(new Det(rect, conf, best, label));
+                        float v = isCxN ? t[0, c, i] : t[0, i, c];
+                        if (v > pMax) pMax = v;
+                        if (v < pMin) pMin = v;
                     }
                 }
-                else // [1,8400,84]
-                {
-                    int num = t.Dimensions[1];
-                    for (int i = 0; i < num; i++)
-                    {
-                        float x = t[0, i, 0], y = t[0, i, 1], w = t[0, i, 2], h = t[0, i, 3];
-                        int best = -1; float conf = 0f;
-                        int ch = t.Dimensions[2];
-                        for (int c = 4; c < ch; c++)
-                        {
-                            float s = t[0, i, c];
-                            if (s > conf) { conf = s; best = c - 4; }
-                        }
-                        if (conf < ScoreThresh) continue;
+                bool needSigmoid = (pMax > 1f || pMin < 0f);
 
-                        var rect = UnletterBox(x, y, w, h, scale, padX, padY, origW, origH);
-                        string label = (best >= 0 && best < _names.Length) ? _names[best] : $"id{best}";
-                        list.Add(new Det(rect, conf, best, label));
+                for (int i = 0; i < N; i++)
+                {
+                    float cx = isCxN ? t[0, 0, i] : t[0, i, 0];
+                    float cy = isCxN ? t[0, 1, i] : t[0, i, 1];
+                    float w = isCxN ? t[0, 2, i] : t[0, i, 2];
+                    float h = isCxN ? t[0, 3, i] : t[0, i, 3];
+
+                    if (w <= 1f || h <= 1f) continue; // giảm nhiễu
+
+                    int best = -1;
+                    float bestScore = 0f;
+                    for (int c = clsStart; c < C; c++)
+                    {
+                        float s = isCxN ? t[0, c, i] : t[0, i, c];
+                        if (needSigmoid) s = 1f / (1f + MathF.Exp(-s));
+                        if (s > bestScore) { bestScore = s; best = c - clsStart; }
                     }
+
+                    if (best < 0 || bestScore < ScoreThresh) continue;
+
+                    // Unletterbox -> toạ độ ảnh gốc
+                    var rect = UnletterBox(cx, cy, w, h, scale, padX, padY, origW, origH);
+                    if (rect.Width < 1f || rect.Height < 1f) continue;
+
+                    string label = (best >= 0 && best < _names.Length) ? _names[best] : $"cls{best}";
+                    list.Add(new Det(rect, bestScore, best, label));
                 }
+
                 return list;
             }
 
-            private static RectangleF UnletterBox(float cx, float cy, float w, float h, float scale, int padX, int padY, int ow, int oh)
+            private static RectangleF UnletterBox(float cx, float cy, float w, float h,
+                                                  float scale, int padX, int padY, int ow, int oh)
             {
                 float x1 = cx - w / 2f, y1 = cy - h / 2f;
                 float x2 = cx + w / 2f, y2 = cy + h / 2f;
@@ -633,9 +675,9 @@ namespace Project_CK
                 return inter / uni;
             }
 
-            private static System.Collections.Generic.List<Det> Nms(System.Collections.Generic.List<Det> boxes, float thr)
+            private static List<Det> Nms(List<Det> boxes, float thr)
             {
-                var res = new System.Collections.Generic.List<Det>();
+                var res = new List<Det>();
                 foreach (var grp in boxes.GroupBy(b => b.ClassId))
                 {
                     var s = grp.OrderByDescending(b => b.Score).ToList();
@@ -648,7 +690,6 @@ namespace Project_CK
                 return res;
             }
 
-            // .NET Framework 4.x không có Math.Clamp
             private static float Clamp(float v, float min, float max) => (v < min) ? min : (v > max ? max : v);
         }
 
