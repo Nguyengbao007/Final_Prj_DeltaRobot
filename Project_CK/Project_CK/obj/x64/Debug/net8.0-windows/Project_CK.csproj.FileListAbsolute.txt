@@ -163,3 +163,11 @@ C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\obj\x64\Debug\net8.0-w
 C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\obj\x64\Debug\net8.0-windows\Project_CK.pdb
 C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\obj\x64\Debug\net8.0-windows\Project_CK.genruntimeconfig.cache
 C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\obj\x64\Debug\net8.0-windows\ref\Project_CK.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.Blob.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.CPlusPlus.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.DebuggerVisualizers.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.Extensions.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.Gpu.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.MachineLearning.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.UserInterface.dll
+C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\bin\x64\Debug\net8.0-windows\OpenCvSharp.dll

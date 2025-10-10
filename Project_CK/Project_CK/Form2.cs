@@ -1,18 +1,19 @@
 ﻿using Emgu.CV;
 using Emgu.CV.CvEnum;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
 using Sharp7;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Drawing;
-using System.Linq;
-using System.Runtime.InteropServices;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using WinTimer = System.Windows.Forms.Timer;
 
@@ -48,6 +49,9 @@ namespace Project_CK
         private YoloOnnxSafe _yolo;
         private readonly string[] _labels = { "black", "chocolate", "milk" };
         private const string MODEL_PATH = @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx";
+        private Rectangle _roiDisp = Rectangle.Empty; // ROI cố định theo ảnh hiển thị
+        private bool _roiEnabled = true;
+        private volatile int _brightness = 0;   // -100..+100
 
         private WinTimer plcTimer;
         private void EnsureYoloLoaded()
@@ -82,7 +86,7 @@ namespace Project_CK
         // shared khung hình mới nhất để UI lấy
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
 
-        const int WIDTH = 640, HEIGHT = 640, TARGET_FPS = 30, CAM_INDEX = 1;
+        const int WIDTH = 640, HEIGHT = 640, TARGET_FPS = 20, CAM_INDEX = 1;
 
         public Form2()
         {
@@ -96,7 +100,7 @@ namespace Project_CK
                 inputW: 640, inputH: 640
             )
             {
-                ScoreThresh = 0.30f,
+                ScoreThresh = 0.80f,
                 NmsThresh = 0.45f
             };
 
@@ -106,21 +110,6 @@ namespace Project_CK
             combox_plc.Text = "192.168.0.1";       // giá trị mặc định
             combox_plc.DropDownStyle = ComboBoxStyle.DropDown;
             UpdateStatus(false);
-            trackBar_dosang.AutoSize = false;
-            trackBar_saturation.AutoSize = false;
-            trackBar_zoom.AutoSize = false;
-            trackBar_dosang.Height = 30;   // nhỏ gọn
-            trackBar_dosang.Minimum = 10;  // fps thấp nhất
-            trackBar_dosang.Maximum = 60;  // fps cao nhất
-            trackBar_dosang.Value = 25;
-            trackBar_saturation.Height = 30;   // nhỏ gọn
-            trackBar_saturation.Minimum = -100;  // fps thấp nhất
-            trackBar_saturation.Maximum = 100;  // fps cao nhất
-            trackBar_saturation.Value = 25;
-            trackBar_zoom.Height = 30;   // nhỏ gọn
-            trackBar_zoom.Minimum = 0;  // fps thấp nhất
-            trackBar_zoom.Maximum = 10;  // fps cao nhất
-            trackBar_zoom.Value = 0;
             numericUpDown_z.Minimum = -400;   // giới hạn nhỏ nhất
             numericUpDown_z.Maximum = -200;
             numericUpDown_z.Increment = 0.1M;
@@ -133,6 +122,7 @@ namespace Project_CK
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 500;
             numericUpDown_y.Increment = 1;
+            _roiDisp = new Rectangle(30, 120, 240, 320);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -297,16 +287,22 @@ namespace Project_CK
             });
         }
         ////////////////////////////////
-        private void trackBar1_Scroll(object sender, EventArgs e)
-        {
-
-        }
         ////////////////////////////////
+        private void InitFixedRoiIfNeeded(int imgW, int imgH)
+        {
+            if (_roiDisp.Width > 0) return;
+            // ví dụ: ROI = 50% chiều rộng x 45% chiều cao, đặt giữa
+            int w = (int)(imgW * 0.50);
+            int h = (int)(imgH * 0.45);
+            int x = (imgW - w) / 2;
+            int y = (imgH - h) / 2;
+            _roiDisp = new Rectangle(x, y, w, h);
+        }
+
         private void btn_startvideo_Click(object sender, EventArgs e)
         {
             if (_cap != null) return;
 
-            // đảm bảo YOLO đã nạp (hoặc ít nhất thử nạp)
             EnsureYoloLoaded();
 
             _cap = new VideoCapture(CAM_INDEX, VideoCapture.API.DShow);
@@ -321,49 +317,142 @@ namespace Project_CK
             {
                 using (var frame = new Mat())
                 {
-                    int frameCount = 0;
                     while (!_cts.IsCancellationRequested)
                     {
                         if (!_cap.Read(frame) || frame.IsEmpty) { Thread.Sleep(1); continue; }
 
-                        using var srcBmp = frame.ToBitmap();
-                        var drawBmp = (Bitmap)srcBmp.Clone();
-
-                        // chỉ detect khi có _yolo
-                        if (_yolo != null)
+                        using (var baseBmp = frame.ToBitmap())
                         {
-                            // nhẹ máy: mỗi 1/2/3 khung...
-                            if ((++frameCount % 1) == 0)
-                            {
-                                try
-                                {
-                                    var dets = _yolo.Infer(srcBmp);
+                            // Áp brightness bằng GDI+. Nếu _brightness = 0 thì clone cho nhanh.
+                            Bitmap srcBmpManaged = (_brightness != 0)
+                                ? ApplyBrightnessGdi(baseBmp, _brightness)
+                                : (Bitmap)baseBmp.Clone();
 
-                                    using var g = Graphics.FromImage(drawBmp);
-                                    using var pen = new Pen(Color.Lime, 2);
-                                    using var font = new Font("Segoe UI", 9);
+                            using (var srcBmp = frame.ToBitmap())     // ảnh sau ProcessFrame nếu bạn đã áp dụng trước đó
+                            {
+                                var drawBmp = (Bitmap)srcBmp.Clone(); // ảnh để vẽ
+
+                                // 1) Khởi tạo ROI cố định (1 lần) – bạn có thể đặt px cụ thể nếu muốn
+                                if (_roiEnabled && _roiDisp.Width <= 0)
+                                {
+                                    int w = (int)(srcBmp.Width * 0.50); // 50% rộng
+                                    int h = (int)(srcBmp.Height * 0.45); // 45% cao
+                                    int x = (srcBmp.Width - w) / 2;
+                                    int y = (srcBmp.Height - h) / 2;
+                                    _roiDisp = new Rectangle(x, y, w, h);
+                                }
+
+                                // 2) Vẽ ROI (nét đứt, chỉ thị)
+                                using (var gRoi = Graphics.FromImage(drawBmp))
+                                using (var roiPen = new Pen(Color.DeepSkyBlue, 2) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash })
+                                {
+                                    if (_roiEnabled && _roiDisp.Width >= 4 && _roiDisp.Height >= 4)
+                                        gRoi.DrawRectangle(roiPen, _roiDisp);
+                                }
+
+                                // 3) Detect CHỈ trong ROI
+                                var dets = new List<YoloOnnxSafe.Det>();
+                                if (_yolo != null && _roiEnabled)
+                                {
+                                    // kẹp ROI trong biên ảnh
+                                    var roi = Rectangle.Intersect(_roiDisp, new Rectangle(0, 0, srcBmp.Width, srcBmp.Height));
+                                    if (roi.Width >= 8 && roi.Height >= 8)
+                                    {
+                                        try
+                                        {
+                                            using (var roiBmp = srcBmp.Clone(roi, PixelFormat.Format24bppRgb))
+                                            {
+                                                var detsRoi = _yolo.Infer(roiBmp);
+
+                                                // map offset ROI -> ảnh gốc
+                                                dets = detsRoi.Select(d =>
+                                                    new YoloOnnxSafe.Det(
+                                                        new RectangleF(d.Rect.X + roi.Left, d.Rect.Y + roi.Top, d.Rect.Width, d.Rect.Height),
+                                                        d.Score, d.ClassId, d.Label)
+                                                ).ToList();
+                                            }
+
+                                            // 4) Giữ bbox NẰM TRỌN trong ROI (Cách B)
+                                            dets = dets.Where(d =>
+                                            {
+                                                int x1 = (int)Math.Floor(d.Rect.Left);
+                                                int y1 = (int)Math.Floor(d.Rect.Top);
+                                                int x2 = (int)Math.Ceiling(d.Rect.Right);
+                                                int y2 = (int)Math.Ceiling(d.Rect.Bottom);
+                                                return _roiDisp.Contains(Rectangle.FromLTRB(x1, y1, x2, y2));
+                                            }).ToList();
+
+                                            // 5) Lọc box nhỏ (điều chỉnh ngưỡng theo thực tế)
+                                            const int MIN_W_PX = 24;         // tối thiểu bề rộng
+                                            const int MIN_H_PX = 24;         // tối thiểu bề cao
+                                            const int MIN_AREA_PX = 24 * 24; // tối thiểu diện tích
+                                                                             // (Tùy chọn) lọc theo tỉ lệ để “tròn” hơn (bỏ nếu không cần):
+                                            const float MIN_ASPECT = 0.5f;   // min w/h
+                                            const float MAX_ASPECT = 2.0f;   // max w/h
+
+                                            dets = dets.Where(d =>
+                                            {
+                                                float w = d.Rect.Width, h = d.Rect.Height;
+                                                if (w < MIN_W_PX || h < MIN_H_PX) return false;
+                                                if ((w * h) < MIN_AREA_PX) return false;
+                                                float ar = w / h;
+                                                if (ar < MIN_ASPECT || ar > MAX_ASPECT) return false;
+                                                return true;
+                                            }).ToList();
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            System.Diagnostics.Debug.WriteLine("YOLO error: " + ex.Message);
+                                            dets.Clear();
+                                        }
+                                    }
+                                }
+
+                                // 6) Vẽ bbox + chấm tâm + label/score + tọa độ (chữ không nền)
+                                using (var g = Graphics.FromImage(drawBmp))
+                                using (var pen = new Pen(Color.Lime, 2))
+                                using (var labelFont = new Font("Segoe UI", 9f, FontStyle.Bold))
+                                using (var coordFont = new Font("Segoe UI", 9f))
+                                {
+                                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
                                     foreach (var d in dets)
                                     {
+                                        // bbox
                                         g.DrawRectangle(pen, d.Rect.X, d.Rect.Y, d.Rect.Width, d.Rect.Height);
-                                        var text = $"{d.Label} {d.Score:0.00}";
-                                        var sz = g.MeasureString(text, font);
-                                        g.FillRectangle(Brushes.Black, d.Rect.X, d.Rect.Y - sz.Height, sz.Width, sz.Height);
-                                        g.DrawString(text, font, Brushes.Yellow, d.Rect.X, d.Rect.Y - sz.Height);
+
+                                        // tâm: chấm tròn nhỏ
+                                        float cx = d.Rect.X + d.Rect.Width / 2f;
+                                        float cy = d.Rect.Y + d.Rect.Height / 2f;
+                                        using (var dot = new SolidBrush(Color.Red))
+                                            g.FillEllipse(dot, cx - 3f, cy - 3f, 6f, 6f);
+
+                                        // label + score (không 'f')
+                                        string scoreStr = d.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                                        string labelText = $"{d.Label} {scoreStr}";
+                                        float lx = d.Rect.X;
+                                        float ly = Math.Max(0, d.Rect.Y - labelFont.Height);
+                                        g.DrawString(labelText, labelFont, Brushes.Black, lx + 1, ly + 1); // bóng
+                                        g.DrawString(labelText, labelFont, Brushes.Yellow, lx, ly);
+
+                                        // tọa độ cạnh chấm (chữ đỏ, không nền)
+                                        string coordText = $"({(int)cx},{(int)cy})";
+                                        float tx = cx + 8f, ty = cy - 8f;
+                                        var s = g.MeasureString(coordText, coordFont);
+                                        float W = drawBmp.Width, H = drawBmp.Height;
+                                        if (tx + s.Width > W - 2) tx = cx - 8f - s.Width;
+                                        if (ty < 0) ty = cy + 8f;
+                                        if (ty + s.Height > H - 2) ty = H - s.Height - 2;
+                                        g.DrawString(coordText, coordFont, Brushes.Black, tx + 1, ty + 1);
+                                        g.DrawString(coordText, coordFont, Brushes.Red, tx, ty);
                                     }
                                 }
-                                catch (Exception ex)
-                                {
-                                    // không làm app sập nếu model/inference lỗi
-                                    // (tùy bạn: log ra hoặc MessageBox một lần)
-                                    System.Diagnostics.Debug.WriteLine("YOLO error: " + ex.Message);
-                                }
-                            }
-                        }
-                        // else: chưa nạp được model → chỉ hiển thị khung gốc
 
-                        var old = Interlocked.Exchange(ref _latestBmp, drawBmp);
-                        old?.Dispose();
+                                // 7) Đẩy ra UI
+                                var old = Interlocked.Exchange(ref _latestBmp, drawBmp);
+                                old?.Dispose();
+                            } // using(srcBmp)
+                        }
                     }
                 }
             });
@@ -938,6 +1027,33 @@ namespace Project_CK
             WriteReal(33, 12, (float)100.0);
             WriteBoolBit(33, 20, 0, true);
             WriteBoolBit(33, 20, 0, false);
+        }
+        private static Bitmap ApplyBrightnessGdi(Bitmap src, int brightness /*-100..100*/)
+        {
+            // brightness offset cho mỗi kênh (đơn vị 0..1 cho ColorMatrix)
+            float b = brightness / 255f;
+
+            var cm = new ColorMatrix(new float[][]
+            {
+        new float[] {1, 0, 0, 0, 0},
+        new float[] {0, 1, 0, 0, 0},
+        new float[] {0, 0, 1, 0, 0},
+        new float[] {0, 0, 0, 1, 0},
+        new float[] {b, b, b, 0, 1} // dịch R,G,B
+            });
+
+            var ia = new ImageAttributes();
+            ia.SetColorMatrix(cm);
+
+            var dst = new Bitmap(src.Width, src.Height, PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(dst))
+            {
+                g.DrawImage(src,
+                    new Rectangle(0, 0, src.Width, src.Height),
+                    0, 0, src.Width, src.Height,
+                    GraphicsUnit.Pixel, ia);
+            }
+            return dst;
         }
     }
 }

@@ -334,6 +334,42 @@
           }
         }
       },
+      "OpenCVSharp/2.4.0.1": {
+        "runtime": {
+          "lib/OpenCvSharp.Blob.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.CPlusPlus.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.DebuggerVisualizers.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.Extensions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.Gpu.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.MachineLearning.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.UserInterface.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          },
+          "lib/OpenCvSharp.dll": {
+            "assemblyVersion": "2.0.4666.42387",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
       "runtime.native.System/4.3.0": {
         "dependencies": {
           "Microsoft.NETCore.Platforms": "1.1.1",
@@ -642,6 +678,13 @@
       "sha512": "sha512-z8FfGIaoeALdD+KF44A2uP8PZIQQtDGiXsOLuN8nohbKhkyKt7zGaZb+fKiCxTuBqG22Q7myIAioSWaIcOOrOw==",
       "path": "microsoft.win32.systemevents/9.0.0",
       "hashPath": "microsoft.win32.systemevents.9.0.0.nupkg.sha512"
+    },
+    "OpenCVSharp/2.4.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tGa7NCBHvUCbZRo+YbmY6bMgw/iFikXqrHSzLtg0BIRWH1hp/lbzNm3VQUq0wr6UXeHQf12hiRWEMuGGhIks4w==",
+      "path": "opencvsharp/2.4.0.1",
+      "hashPath": "opencvsharp.2.4.0.1.nupkg.sha512"
     },
     "runtime.native.System/4.3.0": {
       "type": "package",
