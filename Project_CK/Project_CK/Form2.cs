@@ -8,12 +8,12 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static Project_CK.Form2.YoloOnnxSafe;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using WinTimer = System.Windows.Forms.Timer;
 
@@ -22,8 +22,8 @@ namespace Project_CK
 {
     public partial class Form2 : Form
     {
-        public double ee = 65;     // end effector
-        public double ff = 35;// base
+        public double ee = 60;     // end effector
+        public double ff = 40;// base
         public double re = 230;
         public double rf = 150;
         const Double sqrt3 = 1.732;
@@ -47,67 +47,82 @@ namespace Project_CK
         private System.Windows.Forms.Timer _uiTimer;
 
         private YoloOnnxSafe _yolo;
-        private readonly string[] _coco = new string[] {
-     "person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light",
-     "fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow",
-    "elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee",
-     "skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket",
-     "bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot",
-     "hot dog","pizza","donut","cake","chair","couch","potted plant","bed","dining table","toilet","tv","laptop","mouse",
-     "remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase",
-     "scissors","teddy bear","hair drier","toothbrush"
-        };
+        private readonly string[] _labels = { "green_cake", "red_cake", "yellow_cake" };
+        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\nhap\Project_CK\Project_CK\best.onnx";
+        private Rectangle _roiDisp = Rectangle.Empty; // ROI cố định theo ảnh hiển thị
+        private bool _roiEnabled = true;
+        private volatile int _brightness = 0;   // -100..+100
 
         private WinTimer plcTimer;
+        private void EnsureYoloLoaded()
+        {
+            if (_yolo != null) return;
 
+            if (!System.IO.File.Exists(MODEL_PATH))
+            {
+                MessageBox.Show($"Không tìm thấy model: {MODEL_PATH}");
+                return;
+            }
+
+            try
+            {
+                _yolo = new YoloOnnxSafe(
+                    onnxPath: MODEL_PATH,
+                    classNames: _labels,
+                    useDirectML: false,   // bật true nếu bạn có DML GPU
+                    inputW: 640, inputH: 640
+                )
+                {
+                    ScoreThresh = 0.30f,
+                    NmsThresh = 0.45f
+                };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Load YOLO thất bại: " + ex.Message);
+                _yolo = null;
+            }
+        }
         // shared khung hình mới nhất để UI lấy
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
 
-        const int WIDTH = 640, HEIGHT = 640, TARGET_FPS = 30, CAM_INDEX = 1;
+        const int WIDTH = 640, HEIGHT = 640, TARGET_FPS = 20, CAM_INDEX = 1;
 
         public Form2()
         {
             InitializeComponent();
             plc = new S7Client();
-
-            _yolo = new YoloOnnxSafe("yolov8n.onnx", _coco, useDirectML: false, inputW: 640, inputH: 640)
+            var labels = new[] { "black", "milk", "chocolate" };
+            var yolo = new YoloOnnxSafe(
+                onnxPath: @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx",
+                classNames: labels,
+                useDirectML: false,   // bật true nếu bạn có DML GPU
+                inputW: 640, inputH: 640
+            )
             {
-                ScoreThresh = 0.25f,
+                ScoreThresh = 0.80f,
                 NmsThresh = 0.45f
             };
+
 
             // cấu hình combobox PLC
             combox_plc.Items.Add("192.168.0.1");   // ví dụ IP S7-1200
             combox_plc.Text = "192.168.0.1";       // giá trị mặc định
             combox_plc.DropDownStyle = ComboBoxStyle.DropDown;
             UpdateStatus(false);
-            trackBar_dosang.AutoSize = false;
-            trackBar_saturation.AutoSize = false;
-            trackBar_zoom.AutoSize = false;
-            trackBar_dosang.Height = 30;   // nhỏ gọn
-            trackBar_dosang.Minimum = 10;  // fps thấp nhất
-            trackBar_dosang.Maximum = 60;  // fps cao nhất
-            trackBar_dosang.Value = 25;
-            trackBar_saturation.Height = 30;   // nhỏ gọn
-            trackBar_saturation.Minimum = -100;  // fps thấp nhất
-            trackBar_saturation.Maximum = 100;  // fps cao nhất
-            trackBar_saturation.Value = 25;
-            trackBar_zoom.Height = 30;   // nhỏ gọn
-            trackBar_zoom.Minimum = 0;  // fps thấp nhất
-            trackBar_zoom.Maximum = 10;  // fps cao nhất
-            trackBar_zoom.Value = 0;
             numericUpDown_z.Minimum = -400;   // giới hạn nhỏ nhất
             numericUpDown_z.Maximum = -200;
             numericUpDown_z.Increment = 0.1M;
-            numericUpDown_x.Minimum = -150;   // giới hạn nhỏ nhất
-            numericUpDown_x.Maximum = 150;
+            numericUpDown_x.Minimum = -100;   // giới hạn nhỏ nhất
+            numericUpDown_x.Maximum = 100;
             numericUpDown_x.Increment = 0.1M;
-            numericUpDown_y.Minimum = -150;   // giới hạn nhỏ nhất
-            numericUpDown_y.Maximum = 150;
+            numericUpDown_y.Minimum = -100;   // giới hạn nhỏ nhất
+            numericUpDown_y.Maximum = 100;
             numericUpDown_y.Increment = 0.1M;
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 500;
             numericUpDown_y.Increment = 1;
+            _roiDisp = new Rectangle(30, 120, 240, 320);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -272,62 +287,171 @@ namespace Project_CK
             });
         }
         ////////////////////////////////
-        private void trackBar1_Scroll(object sender, EventArgs e)
-        {
-
-        }
         ////////////////////////////////
+        private void InitFixedRoiIfNeeded(int imgW, int imgH)
+        {
+            if (_roiDisp.Width > 0) return;
+            // ví dụ: ROI = 50% chiều rộng x 45% chiều cao, đặt giữa
+            int w = (int)(imgW * 0.50);
+            int h = (int)(imgH * 0.45);
+            int x = (imgW - w) / 2;
+            int y = (imgH - h) / 2;
+            _roiDisp = new Rectangle(x, y, w, h);
+        }
+
         private void btn_startvideo_Click(object sender, EventArgs e)
         {
             if (_cap != null) return;
+
+            EnsureYoloLoaded();
 
             _cap = new VideoCapture(CAM_INDEX, VideoCapture.API.DShow);
             try { _cap.Set(CapProp.FrameWidth, WIDTH); } catch { }
             try { _cap.Set(CapProp.FrameHeight, HEIGHT); } catch { }
             try { _cap.Set(CapProp.Fps, TARGET_FPS); } catch { }
-            try { _cap.Set(CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G')); } catch { } // giúp giữ FPS với UVC
+            try { _cap.Set(CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G')); } catch { }
 
             _cts = new CancellationTokenSource();
 
-            // Luồng capture: đọc liên tục, YOLO mỗi n khung để nhẹ máy
             _captureTask = Task.Run(() =>
             {
                 using (var frame = new Mat())
                 {
-                    int frameCount = 0;
                     while (!_cts.IsCancellationRequested)
                     {
                         if (!_cap.Read(frame) || frame.IsEmpty) { Thread.Sleep(1); continue; }
 
-                        using var srcBmp = frame.ToBitmap();
-                        var drawBmp = (Bitmap)srcBmp.Clone();
+                            // Áp brightness bằng GDI+. Nếu _brightness = 0 thì clone cho nhanh.
 
-                        // Để nhẹ máy: detect mỗi 2 khung (bạn có thể đổi %1 để detect mọi khung)
-                        if ((++frameCount % 1) == 0)
-                        {
-                            var dets = _yolo.Infer(srcBmp);
-
-                            using var g = Graphics.FromImage(drawBmp);
-                            using var pen = new Pen(Color.Lime, 2);
-                            using var font = new Font("Segoe UI", 9);
-
-                            foreach (var d in dets)
+                            using (var srcBmp = frame.ToBitmap())     // ảnh sau ProcessFrame nếu bạn đã áp dụng trước đó
                             {
-                                g.DrawRectangle(pen, d.Rect.X, d.Rect.Y, d.Rect.Width, d.Rect.Height);
-                                var text = $"{d.Label} {d.Score:0.00}";
-                                var sz = g.MeasureString(text, font);
-                                g.FillRectangle(Brushes.Black, d.Rect.X, d.Rect.Y - sz.Height, sz.Width, sz.Height);
-                                g.DrawString(text, font, Brushes.Yellow, d.Rect.X, d.Rect.Y - sz.Height);
-                            }
-                        }
+                                var drawBmp = (Bitmap)srcBmp.Clone(); // ảnh để vẽ
 
-                        var old = Interlocked.Exchange(ref _latestBmp, drawBmp);
-                        old?.Dispose();
+                                // 1) Khởi tạo ROI cố định (1 lần) – bạn có thể đặt px cụ thể nếu muốn
+                                if (_roiEnabled && _roiDisp.Width <= 0)
+                                {
+                                    int w = (int)(srcBmp.Width * 0.50); // 50% rộng
+                                    int h = (int)(srcBmp.Height * 0.45); // 45% cao
+                                    int x = (srcBmp.Width - w) / 2;
+                                    int y = (srcBmp.Height - h) / 2;
+                                    _roiDisp = new Rectangle(x, y, w, h);
+                                }
+
+                                // 2) Vẽ ROI (nét đứt, chỉ thị)
+                                using (var gRoi = Graphics.FromImage(drawBmp))
+                                using (var roiPen = new Pen(Color.DeepSkyBlue, 2) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash })
+                                {
+                                    if (_roiEnabled && _roiDisp.Width >= 4 && _roiDisp.Height >= 4)
+                                        gRoi.DrawRectangle(roiPen, _roiDisp);
+                                }
+
+                                // 3) Detect CHỈ trong ROI
+                                var dets = new List<YoloOnnxSafe.Det>();
+                                if (_yolo != null && _roiEnabled)
+                                {
+                                    // kẹp ROI trong biên ảnh
+                                    var roi = Rectangle.Intersect(_roiDisp, new Rectangle(0, 0, srcBmp.Width, srcBmp.Height));
+                                    if (roi.Width >= 8 && roi.Height >= 8)
+                                    {
+                                        try
+                                        {
+                                            using (var roiBmp = srcBmp.Clone(roi, PixelFormat.Format24bppRgb))
+                                            {
+                                                var detsRoi = _yolo.Infer(roiBmp);
+
+                                                // map offset ROI -> ảnh gốc
+                                                dets = detsRoi.Select(d =>
+                                                    new YoloOnnxSafe.Det(
+                                                        new RectangleF(d.Rect.X + roi.Left, d.Rect.Y + roi.Top, d.Rect.Width, d.Rect.Height),
+                                                        d.Score, d.ClassId, d.Label)
+                                                ).ToList();
+                                            }
+
+                                            // 4) Giữ bbox NẰM TRỌN trong ROI (Cách B)
+                                            dets = dets.Where(d =>
+                                            {
+                                                int x1 = (int)Math.Floor(d.Rect.Left);
+                                                int y1 = (int)Math.Floor(d.Rect.Top);
+                                                int x2 = (int)Math.Ceiling(d.Rect.Right);
+                                                int y2 = (int)Math.Ceiling(d.Rect.Bottom);
+                                                return _roiDisp.Contains(Rectangle.FromLTRB(x1, y1, x2, y2));
+                                            }).ToList();
+
+                                            // 5) Lọc box nhỏ (điều chỉnh ngưỡng theo thực tế)
+                                            const int MIN_W_PX = 24;         // tối thiểu bề rộng
+                                            const int MIN_H_PX = 24;         // tối thiểu bề cao
+                                            const int MIN_AREA_PX = 24 * 24; // tối thiểu diện tích
+                                                                             // (Tùy chọn) lọc theo tỉ lệ để “tròn” hơn (bỏ nếu không cần):
+                                            const float MIN_ASPECT = 0.5f;   // min w/h
+                                            const float MAX_ASPECT = 2.0f;   // max w/h
+
+                                            dets = dets.Where(d =>
+                                            {
+                                                float w = d.Rect.Width, h = d.Rect.Height;
+                                                if (w < MIN_W_PX || h < MIN_H_PX) return false;
+                                                if ((w * h) < MIN_AREA_PX) return false;
+                                                float ar = w / h;
+                                                if (ar < MIN_ASPECT || ar > MAX_ASPECT) return false;
+                                                return true;
+                                            }).ToList();
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            System.Diagnostics.Debug.WriteLine("YOLO error: " + ex.Message);
+                                            dets.Clear();
+                                        }
+                                    }
+                                }
+
+                                // 6) Vẽ bbox + chấm tâm + label/score + tọa độ (chữ không nền)
+                                using (var g = Graphics.FromImage(drawBmp))
+                                using (var pen = new Pen(Color.Lime, 2))
+                                using (var labelFont = new Font("Segoe UI", 9f, FontStyle.Bold))
+                                using (var coordFont = new Font("Segoe UI", 9f))
+                                {
+                                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                                    foreach (var d in dets)
+                                    {
+                                        // bbox
+                                        g.DrawRectangle(pen, d.Rect.X, d.Rect.Y, d.Rect.Width, d.Rect.Height);
+
+                                        // tâm: chấm tròn nhỏ
+                                        float cx = d.Rect.X + d.Rect.Width / 2f;
+                                        float cy = d.Rect.Y + d.Rect.Height / 2f;
+                                        using (var dot = new SolidBrush(Color.Red))
+                                            g.FillEllipse(dot, cx - 3f, cy - 3f, 6f, 6f);
+
+                                        // label + score (không 'f')
+                                        string scoreStr = d.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                                        string labelText = $"{d.Label} {scoreStr}";
+                                        float lx = d.Rect.X;
+                                        float ly = Math.Max(0, d.Rect.Y - labelFont.Height);
+                                        g.DrawString(labelText, labelFont, Brushes.Black, lx + 1, ly + 1); // bóng
+                                        g.DrawString(labelText, labelFont, Brushes.Yellow, lx, ly);
+
+                                        // tọa độ cạnh chấm (chữ đỏ, không nền)
+                                        string coordText = $"({(int)cx},{(int)cy})";
+                                        float tx = cx + 8f, ty = cy - 8f;
+                                        var s = g.MeasureString(coordText, coordFont);
+                                        float W = drawBmp.Width, H = drawBmp.Height;
+                                        if (tx + s.Width > W - 2) tx = cx - 8f - s.Width;
+                                        if (ty < 0) ty = cy + 8f;
+                                        if (ty + s.Height > H - 2) ty = H - s.Height - 2;
+                                        g.DrawString(coordText, coordFont, Brushes.Black, tx + 1, ty + 1);
+                                        g.DrawString(coordText, coordFont, Brushes.Red, tx, ty);
+                                    }
+                                }
+
+                                // 7) Đẩy ra UI
+                                var old = Interlocked.Exchange(ref _latestBmp, drawBmp);
+                                old?.Dispose();
+                            } // using(srcBmp)
+                        
                     }
                 }
             });
 
-            // UI vẽ ~30 fps (tách khỏi capture)
             _uiTimer = new System.Windows.Forms.Timer { Interval = 1000 / TARGET_FPS };
             _uiTimer.Tick += (s, ev) =>
             {
@@ -475,26 +599,19 @@ namespace Project_CK
             private readonly string _outputName;
             private readonly string[] _names;
 
-            public float ScoreThresh { get; set; } = 0.1f;
+            public float ScoreThresh { get; set; } = 0.30f; // sau sigmoid
             public float NmsThresh { get; set; } = 0.45f;
 
             public YoloOnnxSafe(string onnxPath, string[] classNames, bool useDirectML = false, int inputW = 640, int inputH = 640)
             {
                 var opt = new SessionOptions();
-                if (useDirectML)
-                {
-                    // Cần Microsoft.ML.OnnxRuntime.DirectML
-                    opt.AppendExecutionProvider_DML();
-                }
-                else
-                {
-                    opt.AppendExecutionProvider_CPU();
-                }
+                if (useDirectML) opt.AppendExecutionProvider_DML();
+                else opt.AppendExecutionProvider_CPU();
 
                 _sess = new InferenceSession(onnxPath, opt);
                 _inpW = inputW; _inpH = inputH;
                 _inputName = _sess.InputMetadata.Keys.First();
-                _outputName = PickOutputName(_sess);
+                _outputName = _sess.OutputMetadata.Keys.First(); // YOLOv8 thường chỉ 1 output
                 _names = classNames ?? Array.Empty<string>();
             }
 
@@ -502,8 +619,9 @@ namespace Project_CK
             {
                 var (resized, scale, padX, padY) = Letterbox(bgr, _inpW, _inpH);
 
+                // BGR -> RGB, [1,3,H,W], 0..1
                 var input = new DenseTensor<float>(new[] { 1, 3, _inpH, _inpW });
-                var data = BitmapToBytes24(resized); // BGR bytes
+                var data = BitmapToBytes24(resized);
                 int idx = 0;
                 for (int y = 0; y < _inpH; y++)
                 {
@@ -517,18 +635,11 @@ namespace Project_CK
                 }
                 resized.Dispose();
 
-                // ✅ Không dùng using var ở đây nữa
-                var inputs = new List<NamedOnnxValue>
-    {
-        NamedOnnxValue.CreateFromTensor(_inputName, input)
-    };
-
-                // ✅ Chỉ cần using cho results thôi
+                var inputs = new List<NamedOnnxValue> { NamedOnnxValue.CreateFromTensor(_inputName, input) };
                 using var results = _sess.Run(inputs);
-
                 var t = results.First(o => o.Name == _outputName).AsTensor<float>();
 
-                var dets = ParseDetections(t, scale, padX, padY, bgr.Width, bgr.Height);
+                var dets = ParseDetectionsYolov8(t, scale, padX, padY, bgr.Width, bgr.Height);
                 return Nms(dets, NmsThresh);
             }
 
@@ -561,56 +672,70 @@ namespace Project_CK
                 return buffer;
             }
 
-            private static string PickOutputName(InferenceSession s)
-                => s.OutputMetadata.Keys.First(); // đa số model Ultralytics có 1 output; nếu nhiều, chọn cái đầu
-
-            private System.Collections.Generic.List<Det> ParseDetections(Tensor<float> t, float scale, int padX, int padY, int origW, int origH)
+            private List<Det> ParseDetectionsYolov8(Tensor<float> t, float scale, int padX, int padY, int origW, int origH)
             {
-                var list = new System.Collections.Generic.List<Det>();
+                var list = new List<Det>();
+                if (t.Dimensions.Length != 3) return list;
 
-                if (t.Dimensions.Length == 3 && t.Dimensions[1] == 84) // [1,84,8400]
+                int d1 = t.Dimensions[1];
+                int d2 = t.Dimensions[2];
+
+                // YOLOv8: output thường là [1, C, N] (CxN) hoặc [1, N, C] (NxC), không objectness
+                bool isCxN = d1 <= d2;      // C nhỏ hơn N
+                int C = isCxN ? d1 : d2;    // 4 + numClasses
+                int N = isCxN ? d2 : d1;
+
+                int clsStart = 4;
+                int numClasses = C - clsStart;
+                if (numClasses <= 0) return list;
+
+                // Kiểm tra cần sigmoid hay không (nếu là logits)
+                int probe = Math.Min(N, 200);
+                float pMax = float.NegativeInfinity, pMin = float.PositiveInfinity;
+                for (int i = 0; i < probe; i++)
                 {
-                    int num = t.Dimensions[2];
-                    for (int i = 0; i < num; i++)
+                    for (int c = clsStart; c < C; c++)
                     {
-                        float x = t[0, 0, i], y = t[0, 1, i], w = t[0, 2, i], h = t[0, 3, i];
-                        int best = -1; float conf = 0f;
-                        for (int c = 4; c < 84; c++)
-                        {
-                            float s = t[0, c, i];
-                            if (s > conf) { conf = s; best = c - 4; }
-                        }
-                        if (conf < ScoreThresh) continue;
-
-                        var rect = UnletterBox(x, y, w, h, scale, padX, padY, origW, origH);
-                        string label = (best >= 0 && best < _names.Length) ? _names[best] : $"id{best}";
-                        list.Add(new Det(rect, conf, best, label));
+                        float v = isCxN ? t[0, c, i] : t[0, i, c];
+                        if (v > pMax) pMax = v;
+                        if (v < pMin) pMin = v;
                     }
                 }
-                else // [1,8400,84]
-                {
-                    int num = t.Dimensions[1];
-                    for (int i = 0; i < num; i++)
-                    {
-                        float x = t[0, i, 0], y = t[0, i, 1], w = t[0, i, 2], h = t[0, i, 3];
-                        int best = -1; float conf = 0f;
-                        int ch = t.Dimensions[2];
-                        for (int c = 4; c < ch; c++)
-                        {
-                            float s = t[0, i, c];
-                            if (s > conf) { conf = s; best = c - 4; }
-                        }
-                        if (conf < ScoreThresh) continue;
+                bool needSigmoid = (pMax > 1f || pMin < 0f);
 
-                        var rect = UnletterBox(x, y, w, h, scale, padX, padY, origW, origH);
-                        string label = (best >= 0 && best < _names.Length) ? _names[best] : $"id{best}";
-                        list.Add(new Det(rect, conf, best, label));
+                for (int i = 0; i < N; i++)
+                {
+                    float cx = isCxN ? t[0, 0, i] : t[0, i, 0];
+                    float cy = isCxN ? t[0, 1, i] : t[0, i, 1];
+                    float w = isCxN ? t[0, 2, i] : t[0, i, 2];
+                    float h = isCxN ? t[0, 3, i] : t[0, i, 3];
+
+                    if (w <= 1f || h <= 1f) continue; // giảm nhiễu
+
+                    int best = -1;
+                    float bestScore = 0f;
+                    for (int c = clsStart; c < C; c++)
+                    {
+                        float s = isCxN ? t[0, c, i] : t[0, i, c];
+                        if (needSigmoid) s = 1f / (1f + MathF.Exp(-s));
+                        if (s > bestScore) { bestScore = s; best = c - clsStart; }
                     }
+
+                    if (best < 0 || bestScore < ScoreThresh) continue;
+
+                    // Unletterbox -> toạ độ ảnh gốc
+                    var rect = UnletterBox(cx, cy, w, h, scale, padX, padY, origW, origH);
+                    if (rect.Width < 1f || rect.Height < 1f) continue;
+
+                    string label = (best >= 0 && best < _names.Length) ? _names[best] : $"cls{best}";
+                    list.Add(new Det(rect, bestScore, best, label));
                 }
+
                 return list;
             }
 
-            private static RectangleF UnletterBox(float cx, float cy, float w, float h, float scale, int padX, int padY, int ow, int oh)
+            private static RectangleF UnletterBox(float cx, float cy, float w, float h,
+                                                  float scale, int padX, int padY, int ow, int oh)
             {
                 float x1 = cx - w / 2f, y1 = cy - h / 2f;
                 float x2 = cx + w / 2f, y2 = cy + h / 2f;
@@ -634,9 +759,9 @@ namespace Project_CK
                 return inter / uni;
             }
 
-            private static System.Collections.Generic.List<Det> Nms(System.Collections.Generic.List<Det> boxes, float thr)
+            private static List<Det> Nms(List<Det> boxes, float thr)
             {
-                var res = new System.Collections.Generic.List<Det>();
+                var res = new List<Det>();
                 foreach (var grp in boxes.GroupBy(b => b.ClassId))
                 {
                     var s = grp.OrderByDescending(b => b.Score).ToList();
@@ -649,20 +774,9 @@ namespace Project_CK
                 return res;
             }
 
-            // .NET Framework 4.x không có Math.Clamp
             private static float Clamp(float v, float min, float max) => (v < min) ? min : (v > max ? max : v);
         }
 
-        static void RotateZ(double x, double y, double z, double thetaDeg,
-                     out double xr, out double yr, out double zr)
-        {
-            double r = Math.PI * thetaDeg / 180.0;
-            double c = Math.Cos(r);
-            double s = Math.Sin(r);
-            xr = c * x - s * y;
-            yr = s * x + c * y;
-            zr = z; // xoay quanh Z thì Z không đổi
-        }
         private void viewplc(object sender, EventArgs e)
         {
             byte[] buf = new byte[12];
@@ -670,18 +784,19 @@ namespace Project_CK
             double x_rotate, y_rotate, z_rotate;
             if (result == 0)
             {
-                float x = S7.GetRealAt(buf, 0);
-                float y = S7.GetRealAt(buf, 4);
-                float z = S7.GetRealAt(buf, 8);
+                float theta1 = S7.GetRealAt(buf, 0);
+                float theta2 = S7.GetRealAt(buf, 4);
+                float theta3 = S7.GetRealAt(buf, 8);
 
                 double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
-                int Status1 = delta_calcForward(x * (-1) / 10, y * (-1) / 10, z / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+                int Status1 = delta_calcForward(theta1 * (-1) / 10, theta2 * (-1) / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
                 RotateZ(X_viewplc, Y_viewplc, Z_viewplc, thetaDeg: 30, out x_rotate, out y_rotate, out z_rotate);
+
                 if (Status1 == 0)
                 {
-                    textBox_viewplc_x.Text = FormatValue(X_viewplc);
-                    textBox_viewplc_y.Text = FormatValue(Y_viewplc);
-                    textBox_viewplc_z.Text = FormatValue(Z_viewplc);
+                    textBox_viewplc_x.Text = FormatValue(x_rotate);
+                    textBox_viewplc_y.Text = FormatValue(y_rotate);
+                    textBox_viewplc_z.Text = FormatValue(z_rotate);
                 }
                 else
                 {
@@ -699,23 +814,29 @@ namespace Project_CK
             }
         }
         ////////////////////////////////
-        void WriteBoolBit(int db, int byteOffset, int bit, bool value)
+        public void WriteBool(int db, int byteOffset, int bitOffset, bool value)
         {
-            byte[] b = new byte[1];
-            int rc = plc.DBRead(db, byteOffset, 1, b);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            // 1️⃣ Đọc byte hiện tại
+            byte[] buf = new byte[1];
+            int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
+            if (rc != 0)
+                throw new Exception(plc.ErrorText(rc));
 
-            S7.SetBitAt(b, 0, bit, value);  // bit = 0..7 trong byte
-            rc = plc.DBWrite(db, byteOffset, 1, b);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            // 2️⃣ Sửa đúng bit cần ghi
+            S7.SetBitAt( buf, 0, bitOffset, value);
+
+            // 3️⃣ Ghi lại nguyên byte sau khi chỉnh
+            rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
+            if (rc != 0)
+                throw new Exception(plc.ErrorText(rc));
         }
-        public bool ReadBoolBit(int db, int byteOffset, int bit)
+        public bool ReadBool(int db, int byteOffset, int bitOffset)
         {
-            byte[] b = new byte[1];
-            int rc = plc.DBRead(db, byteOffset, 1, b);
+            byte[] buf = new byte[1];
+            int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
             if (rc != 0) throw new Exception(plc.ErrorText(rc));
 
-            return (b[0] & (1 << bit)) != 0;
+            return S7.GetBitAt(buf, 0, bitOffset);
         }
         public void WriteReal(int db, int byteOffset, float value)
         {
@@ -746,14 +867,16 @@ namespace Project_CK
             if (rc != 0) throw new Exception(plc.ErrorText(rc));
             return S7.GetDIntAt(buf, 0);
         }
-
-        void PulseExec(int db, int ofsBitByte, int bit, int ms = 50)
+        static void RotateZ(double x, double y, double z, double thetaDeg,
+                             out double xr, out double yr, out double zr)
         {
-            var b = new byte[1]; plc.DBRead(db, ofsBitByte, 1, b);
-            b[0] = (byte)(b[0] | (1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
-            System.Threading.Thread.Sleep(ms);
-            b[0] = (byte)(b[0] & ~(1 << bit)); plc.DBWrite(db, ofsBitByte, 1, b);
-        }
+            double r = Math.PI * thetaDeg / 180.0;
+            double c = Math.Cos(r);
+            double s = Math.Sin(r);
+            xr = c * x - s * y;
+            yr = s * x + c * y;
+            zr = z; // xoay quanh Z thì Z không đổi
+        }   
         /*
         ////////////////////////////////
         // ====== Nội suy Cartesian → IK → gửi Absolute ======
@@ -897,8 +1020,8 @@ namespace Project_CK
             WriteReal(44, 4, (float)y_rotate);
             WriteReal(44, 8, (float)z_rotate);
             WriteReal(44, 12, (float)vTcp);
-            WriteBoolBit(33, 0, 3, true);
-            WriteBoolBit(33, 0, 3, false);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
 
 
         }
@@ -909,8 +1032,11 @@ namespace Project_CK
                 MessageBox.Show("PLC chưa kết nối.");
                 return;
             }
-            WriteBoolBit(33, 0, 0, false);
-            WriteBoolBit(33, 0, 0, true);
+            WriteBool(48, 0, 0, false);
+            WriteBool(48, 0, 0, true);
+            WriteBool(33, 0, 0, false);
+            WriteBool(33, 0, 0, true);
         }
+
     }
 }

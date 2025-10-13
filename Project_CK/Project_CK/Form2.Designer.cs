@@ -69,12 +69,6 @@
             groupBox5 = new GroupBox();
             btn_stopvideo = new Button();
             btn_startvideo = new Button();
-            trackBar_zoom = new TrackBar();
-            label17 = new Label();
-            trackBar_saturation = new TrackBar();
-            label16 = new Label();
-            trackBar_dosang = new TrackBar();
-            label15 = new Label();
             groupbox = new GroupBox();
             button6 = new Button();
             button5 = new Button();
@@ -103,15 +97,13 @@
             textBox_viewplc_y = new TextBox();
             label24 = new Label();
             textBox_viewplc_x = new TextBox();
+            btn_auto = new Button();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             groupBox5.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)trackBar_zoom).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)trackBar_saturation).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)trackBar_dosang).BeginInit();
             groupbox.SuspendLayout();
             groupBox6.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDown_vel).BeginInit();
@@ -131,7 +123,7 @@
             groupBox1.Controls.Add(textBox_theta2);
             groupBox1.Controls.Add(textBox_theta1);
             groupBox1.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox1.Location = new Point(3, 494);
+            groupBox1.Location = new Point(1, 432);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(223, 148);
             groupBox1.TabIndex = 0;
@@ -209,7 +201,7 @@
             groupBox2.Controls.Add(textBox_y);
             groupBox2.Controls.Add(textBox_x);
             groupBox2.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox2.Location = new Point(589, 494);
+            groupBox2.Location = new Point(587, 432);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(194, 148);
             groupBox2.TabIndex = 3;
@@ -293,7 +285,7 @@
             groupBox3.Controls.Add(textBox_view_y);
             groupBox3.Controls.Add(textBox_view_x);
             groupBox3.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox3.Location = new Point(232, 494);
+            groupBox3.Location = new Point(230, 432);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new Size(351, 148);
             groupBox3.TabIndex = 4;
@@ -480,30 +472,25 @@
             // 
             pictureBox.Location = new Point(789, 8);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(640, 480);
+            pictureBox.Size = new Size(365, 480);
             pictureBox.TabIndex = 7;
             pictureBox.TabStop = false;
             // 
             // groupBox5
             // 
+            groupBox5.Controls.Add(btn_auto);
             groupBox5.Controls.Add(btn_stopvideo);
             groupBox5.Controls.Add(btn_startvideo);
-            groupBox5.Controls.Add(trackBar_zoom);
-            groupBox5.Controls.Add(label17);
-            groupBox5.Controls.Add(trackBar_saturation);
-            groupBox5.Controls.Add(label16);
-            groupBox5.Controls.Add(trackBar_dosang);
-            groupBox5.Controls.Add(label15);
-            groupBox5.Location = new Point(789, 494);
+            groupBox5.Location = new Point(789, 493);
             groupBox5.Name = "groupBox5";
-            groupBox5.Size = new Size(640, 148);
+            groupBox5.Size = new Size(263, 86);
             groupBox5.TabIndex = 9;
             groupBox5.TabStop = false;
             groupBox5.Text = "Setting";
             // 
             // btn_stopvideo
             // 
-            btn_stopvideo.Location = new Point(402, 22);
+            btn_stopvideo.Location = new Point(87, 31);
             btn_stopvideo.Name = "btn_stopvideo";
             btn_stopvideo.Size = new Size(75, 23);
             btn_stopvideo.TabIndex = 8;
@@ -513,71 +500,13 @@
             // 
             // btn_startvideo
             // 
-            btn_startvideo.Location = new Point(310, 22);
+            btn_startvideo.Location = new Point(6, 30);
             btn_startvideo.Name = "btn_startvideo";
             btn_startvideo.Size = new Size(75, 23);
             btn_startvideo.TabIndex = 7;
             btn_startvideo.Text = "Start";
             btn_startvideo.UseVisualStyleBackColor = true;
             btn_startvideo.Click += btn_startvideo_Click;
-            // 
-            // trackBar_zoom
-            // 
-            trackBar_zoom.Location = new Point(83, 103);
-            trackBar_zoom.Name = "trackBar_zoom";
-            trackBar_zoom.Size = new Size(201, 45);
-            trackBar_zoom.TabIndex = 6;
-            trackBar_zoom.TickFrequency = 100;
-            trackBar_zoom.TickStyle = TickStyle.Both;
-            // 
-            // label17
-            // 
-            label17.AutoSize = true;
-            label17.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label17.Location = new Point(6, 113);
-            label17.Name = "label17";
-            label17.Size = new Size(45, 15);
-            label17.TabIndex = 5;
-            label17.Text = "Zoom :";
-            // 
-            // trackBar_saturation
-            // 
-            trackBar_saturation.Location = new Point(83, 61);
-            trackBar_saturation.Name = "trackBar_saturation";
-            trackBar_saturation.Size = new Size(201, 45);
-            trackBar_saturation.TabIndex = 4;
-            trackBar_saturation.TickFrequency = 100;
-            trackBar_saturation.TickStyle = TickStyle.Both;
-            // 
-            // label16
-            // 
-            label16.AutoSize = true;
-            label16.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label16.Location = new Point(6, 71);
-            label16.Name = "label16";
-            label16.Size = new Size(71, 15);
-            label16.TabIndex = 3;
-            label16.Text = "Saturation :";
-            // 
-            // trackBar_dosang
-            // 
-            trackBar_dosang.Location = new Point(83, 15);
-            trackBar_dosang.Name = "trackBar_dosang";
-            trackBar_dosang.Size = new Size(201, 45);
-            trackBar_dosang.TabIndex = 2;
-            trackBar_dosang.TickFrequency = 100;
-            trackBar_dosang.TickStyle = TickStyle.Both;
-            trackBar_dosang.Scroll += trackBar1_Scroll;
-            // 
-            // label15
-            // 
-            label15.AutoSize = true;
-            label15.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label15.Location = new Point(6, 35);
-            label15.Name = "label15";
-            label15.Size = new Size(59, 15);
-            label15.TabIndex = 1;
-            label15.Text = "Độ Sáng :";
             // 
             // groupbox
             // 
@@ -587,7 +516,7 @@
             groupbox.Controls.Add(button3);
             groupbox.Controls.Add(button2);
             groupbox.Controls.Add(button1);
-            groupbox.Location = new Point(537, 21);
+            groupbox.Location = new Point(415, 22);
             groupbox.Name = "groupbox";
             groupbox.Size = new Size(208, 124);
             groupbox.TabIndex = 10;
@@ -855,11 +784,20 @@
             textBox_viewplc_x.Size = new Size(100, 25);
             textBox_viewplc_x.TabIndex = 11;
             // 
+            // btn_auto
+            // 
+            btn_auto.Location = new Point(168, 32);
+            btn_auto.Name = "btn_auto";
+            btn_auto.Size = new Size(75, 23);
+            btn_auto.TabIndex = 14;
+            btn_auto.Text = "AUTO";
+            btn_auto.UseVisualStyleBackColor = true;
+            // 
             // Form2
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1426, 654);
+            ClientSize = new Size(1426, 584);
             Controls.Add(groupBox8);
             Controls.Add(groupBox6);
             Controls.Add(groupbox);
@@ -881,10 +819,6 @@
             groupBox4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
             groupBox5.ResumeLayout(false);
-            groupBox5.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)trackBar_zoom).EndInit();
-            ((System.ComponentModel.ISupportInitialize)trackBar_saturation).EndInit();
-            ((System.ComponentModel.ISupportInitialize)trackBar_dosang).EndInit();
             groupbox.ResumeLayout(false);
             groupBox6.ResumeLayout(false);
             groupBox6.PerformLayout();
@@ -937,12 +871,6 @@
         private Label label14;
         private PictureBox pictureBox;
         private GroupBox groupBox5;
-        private Label label15;
-        private TrackBar trackBar_dosang;
-        private TrackBar trackBar_zoom;
-        private Label label17;
-        private TrackBar trackBar_saturation;
-        private Label label16;
         private Button btn_stopvideo;
         private Button btn_startvideo;
         private GroupBox groupbox;
@@ -973,5 +901,6 @@
         private TextBox textBox_ns_z;
         private TextBox textBox_ns_y;
         private TextBox textBox_ns_x;
+        private Button btn_auto;
     }
 }

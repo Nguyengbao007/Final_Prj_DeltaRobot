@@ -1,13 +1,13 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\",
+  "WorkspaceRootPath": "C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|c:\\users\\hoang\\documents\\automation\\new folder\\project_ck\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|c:\\users\\hoang\\documents\\nhap\\project_ck\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|solutionrelative:project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|solutionrelative:project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     }
   ],
@@ -24,10 +24,10 @@
               "$type": "Document",
               "DocumentIndex": 1,
               "Title": "Form2.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\Project_CK\\Form2.cs",
+              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\Project_CK\\Form2.cs",
               "RelativeDocumentMoniker": "Project_CK\\Form2.cs",
-              "ToolTip": "C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\Project_CK\\Form2.cs [Design]",
-              "RelativeToolTip": "Project_CK\\Form2.cs [Design]",
+              "ToolTip": "C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\Project_CK\\Form2.cs [Design]*",
+              "RelativeToolTip": "Project_CK\\Form2.cs [Design]*",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-09-29T08:23:54.453Z",
               "IsPinned": true,
@@ -37,11 +37,11 @@
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "Form2.cs",
-              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\Project_CK\\Form2.cs",
+              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\Project_CK\\Form2.cs",
               "RelativeDocumentMoniker": "Project_CK\\Form2.cs",
-              "ToolTip": "C:\\Users\\Hoang\\Documents\\Automation\\New folder\\Project_CK\\Project_CK\\Form2.cs",
-              "RelativeToolTip": "Project_CK\\Form2.cs",
-              "ViewState": "AgIAAHMDAAAAAAAAAAAAAHcDAABEAAAAAAAAAA==",
+              "ToolTip": "C:\\Users\\Hoang\\Documents\\nhap\\Project_CK\\Project_CK\\Form2.cs*",
+              "RelativeToolTip": "Project_CK\\Form2.cs*",
+              "ViewState": "AgIAAO0DAAAAAAAAAAAqwAkEAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-09-29T06:36:00.124Z",
               "IsPinned": true,
