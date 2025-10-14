@@ -67,6 +67,7 @@
             label13 = new Label();
             pictureBox = new PictureBox();
             groupBox5 = new GroupBox();
+            btn_auto = new Button();
             btn_stopvideo = new Button();
             btn_startvideo = new Button();
             groupbox = new GroupBox();
@@ -97,7 +98,6 @@
             textBox_viewplc_y = new TextBox();
             label24 = new Label();
             textBox_viewplc_x = new TextBox();
-            btn_auto = new Button();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
@@ -123,7 +123,7 @@
             groupBox1.Controls.Add(textBox_theta2);
             groupBox1.Controls.Add(textBox_theta1);
             groupBox1.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox1.Location = new Point(1, 432);
+            groupBox1.Location = new Point(5, 538);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(223, 148);
             groupBox1.TabIndex = 0;
@@ -201,7 +201,7 @@
             groupBox2.Controls.Add(textBox_y);
             groupBox2.Controls.Add(textBox_x);
             groupBox2.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox2.Location = new Point(587, 432);
+            groupBox2.Location = new Point(591, 538);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(194, 148);
             groupBox2.TabIndex = 3;
@@ -285,7 +285,7 @@
             groupBox3.Controls.Add(textBox_view_y);
             groupBox3.Controls.Add(textBox_view_x);
             groupBox3.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox3.Location = new Point(230, 432);
+            groupBox3.Location = new Point(234, 538);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new Size(351, 148);
             groupBox3.TabIndex = 4;
@@ -470,9 +470,9 @@
             // 
             // pictureBox
             // 
-            pictureBox.Location = new Point(789, 8);
+            pictureBox.Location = new Point(791, 12);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(365, 480);
+            pictureBox.Size = new Size(640, 542);
             pictureBox.TabIndex = 7;
             pictureBox.TabStop = false;
             // 
@@ -481,12 +481,21 @@
             groupBox5.Controls.Add(btn_auto);
             groupBox5.Controls.Add(btn_stopvideo);
             groupBox5.Controls.Add(btn_startvideo);
-            groupBox5.Location = new Point(789, 493);
+            groupBox5.Location = new Point(791, 604);
             groupBox5.Name = "groupBox5";
             groupBox5.Size = new Size(263, 86);
             groupBox5.TabIndex = 9;
             groupBox5.TabStop = false;
             groupBox5.Text = "Setting";
+            // 
+            // btn_auto
+            // 
+            btn_auto.Location = new Point(168, 32);
+            btn_auto.Name = "btn_auto";
+            btn_auto.Size = new Size(75, 23);
+            btn_auto.TabIndex = 14;
+            btn_auto.Text = "AUTO";
+            btn_auto.UseVisualStyleBackColor = true;
             // 
             // btn_stopvideo
             // 
@@ -784,20 +793,11 @@
             textBox_viewplc_x.Size = new Size(100, 25);
             textBox_viewplc_x.TabIndex = 11;
             // 
-            // btn_auto
-            // 
-            btn_auto.Location = new Point(168, 32);
-            btn_auto.Name = "btn_auto";
-            btn_auto.Size = new Size(75, 23);
-            btn_auto.TabIndex = 14;
-            btn_auto.Text = "AUTO";
-            btn_auto.UseVisualStyleBackColor = true;
-            // 
             // Form2
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1426, 584);
+            ClientSize = new Size(1511, 687);
             Controls.Add(groupBox8);
             Controls.Add(groupBox6);
             Controls.Add(groupbox);
