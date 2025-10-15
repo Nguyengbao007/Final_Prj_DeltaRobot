@@ -123,7 +123,7 @@
             groupBox1.Controls.Add(textBox_theta2);
             groupBox1.Controls.Add(textBox_theta1);
             groupBox1.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox1.Location = new Point(5, 538);
+            groupBox1.Location = new Point(5, 406);
             groupBox1.Name = "groupBox1";
             groupBox1.Size = new Size(223, 148);
             groupBox1.TabIndex = 0;
@@ -201,7 +201,7 @@
             groupBox2.Controls.Add(textBox_y);
             groupBox2.Controls.Add(textBox_x);
             groupBox2.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox2.Location = new Point(591, 538);
+            groupBox2.Location = new Point(591, 406);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(194, 148);
             groupBox2.TabIndex = 3;
@@ -285,7 +285,7 @@
             groupBox3.Controls.Add(textBox_view_y);
             groupBox3.Controls.Add(textBox_view_x);
             groupBox3.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            groupBox3.Location = new Point(234, 538);
+            groupBox3.Location = new Point(234, 406);
             groupBox3.Name = "groupBox3";
             groupBox3.Size = new Size(351, 148);
             groupBox3.TabIndex = 4;
@@ -472,7 +472,7 @@
             // 
             pictureBox.Location = new Point(791, 12);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(640, 542);
+            pictureBox.Size = new Size(640, 597);
             pictureBox.TabIndex = 7;
             pictureBox.TabStop = false;
             // 
@@ -481,7 +481,7 @@
             groupBox5.Controls.Add(btn_auto);
             groupBox5.Controls.Add(btn_stopvideo);
             groupBox5.Controls.Add(btn_startvideo);
-            groupBox5.Location = new Point(791, 604);
+            groupBox5.Location = new Point(522, 290);
             groupBox5.Name = "groupBox5";
             groupBox5.Size = new Size(263, 86);
             groupBox5.TabIndex = 9;
@@ -797,7 +797,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1511, 687);
+            ClientSize = new Size(1511, 621);
             Controls.Add(groupBox8);
             Controls.Add(groupBox6);
             Controls.Add(groupbox);

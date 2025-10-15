@@ -1,5 +1,6 @@
 ﻿using Emgu.CV;
 using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Sharp7;
@@ -15,6 +16,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Emgu.CV.Util;
 //using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using WinTimer = System.Windows.Forms.Timer;
 
@@ -126,9 +128,58 @@ namespace Project_CK
         private const int OFF_T_INT = 8;  // DBB8..9
 
 
-        //10_14
+        //10_15
+        // --- Lọc box nhỏ ---
+        private const int MIN_W_PX = 24;       // bề rộng tối thiểu (px)
+        private const int MIN_H_PX = 24;       // bề cao  tối thiểu (px)
+        private const int MIN_AREA_PX = 24 * 24;  // diện tích tối thiểu (px^2)
+        private const float MIN_ASPECT = 0.5f;     // w/h tối thiểu
+        private const float MAX_ASPECT = 2.0f;     // w/h tối đa
+        private const float MIN_ROI_AREA_RATIO = 0.004f; // 0.4% diện tích ROI (lọc theo tỉ lệ)
+        private const float CONTAIN_SUPPRESS_IOU = 0.5f; // nms đơn giản cho box chồng
+        // ===== Meta cho letterbox raw -> 640x640 =====
+        struct ResizeMeta
+        {
+            public int OrigW, OrigH;     // kích thước ảnh gốc (vd 1920x1080)
+            public int NewW, NewH;       // 640x640
+            public double Scale;         // = Min(640/OrigW, 640/OrigH)
+            public int PadX, PadY;       // viền đen (letterbox)
+        }
+        private ResizeMeta _lastResizeMeta;
+        // ===== Calib camera
+        // --- Z0 của mặt phẳng làm việc (mm) ---
+        private const double Z0_MM = 0.0;          // mặt phẳng băng tải là Z=0
+        private const double CAM_HEIGHT = -300.0;   // camera cao 310mm so với mặt phẳng
+
+        // --- K (1920x1080) bạn đã cung cấp ---
+        private readonly double[,] _K_1920 = new double[,]
+        {
+    { 1474.9241195700, 0.0000000000, 953.0940681343 },
+    { 0.0000000000, 1476.6458229523, 526.5786938637 },
+    { 0.0000000000, 0.0000000000, 1.0000000000 }
+        };
+
+        // Nếu chưa có distortion thực, tạm dùng zero
+        private readonly double[] _dist_1920 = new double[] { 0, 0, 0, 0, 0 };
+
+        // --- Extrinsic world->camera (Rcw, tcw) cho top-down (không nghiêng) ---
+ private readonly double[,] _Rcw = new double[,]
+{
+    { 1, 0, 0 },
+    { 0, 1, 0 },
+    { 0, 0, 1 }
+};
 
 
+        // t = (0, 0, 310) để tâm camera Cw = -R^T t = (0,0,310)
+        private readonly double[] _tcw = new double[] { 0, 0, CAM_HEIGHT };
+
+
+        private const double BELT_SPEED_MM_PER_S = 10.0;  // ví dụ 150 mm/s
+        private const double BELT_DELAY_S = 4.0;           // dự đoán sau 2 giây
+        private const int BELT_DIR = -1;                    // +1 nếu băng tải chạy theo +Y, -1 nếu ngược
+        const int BELT_DIR_X = +1;
+        const int kc_x_camera = -260;
 
         public Form2()
         {
@@ -155,16 +206,16 @@ namespace Project_CK
             numericUpDown_z.Minimum = -400;   // giới hạn nhỏ nhất
             numericUpDown_z.Maximum = -200;
             numericUpDown_z.Increment = 0.1M;
-            numericUpDown_x.Minimum = -100;   // giới hạn nhỏ nhất
-            numericUpDown_x.Maximum = 100;
+            numericUpDown_x.Minimum = -120;   // giới hạn nhỏ nhất
+            numericUpDown_x.Maximum = 120;
             numericUpDown_x.Increment = 0.1M;
-            numericUpDown_y.Minimum = -100;   // giới hạn nhỏ nhất
-            numericUpDown_y.Maximum = 100;
+            numericUpDown_y.Minimum = -120;   // giới hạn nhỏ nhất
+            numericUpDown_y.Maximum = 120;
             numericUpDown_y.Increment = 0.1M;
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 500;
             numericUpDown_y.Increment = 1;
-            _roiDisp = new Rectangle(40, 120, 220, 320);
+            _roiDisp = new Rectangle(45, 200, 220, 320);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -346,8 +397,8 @@ namespace Project_CK
         {
             if (_cap != null) return;
 
-            EnsureYoloLoaded();          // của bạn
-            EnsurePlcSenderRunning();    // gửi PLC nền
+            EnsureYoloLoaded();          // nạp YOLO nếu chưa
+            EnsurePlcSenderRunning();    // khởi chạy luồng gửi PLC nền
 
             _cap = new VideoCapture(1, VideoCapture.API.DShow);
             try { _cap.Set(CapProp.FrameWidth, WIDTH); } catch { }
@@ -365,12 +416,28 @@ namespace Project_CK
                     if (!_cap.Read(frame) || frame.IsEmpty) { Thread.Sleep(1); continue; }
 
                     using (var rawBmp = frame.ToBitmap())
-                    using (var srcBmp = (rawBmp.Width == 640 && rawBmp.Height == 640) ?
-                                         (Bitmap)rawBmp.Clone() : PadToSquare640(rawBmp))
+                    using (var srcBmp = (rawBmp.Width == 640 && rawBmp.Height == 640)
+                                         ? (Bitmap)rawBmp.Clone()
+                                         : PadToSquare640WithMeta(rawBmp, out _lastResizeMeta)) // lưu meta để map ngược khi gửi PLC
                     {
+                        // nếu nguồn vốn đã là 640x640 thì set meta identity để pipeline thống nhất
+                        if (rawBmp.Width == 640 && rawBmp.Height == 640)
+                        {
+                            _lastResizeMeta = new ResizeMeta
+                            {
+                                OrigW = 640,
+                                OrigH = 640,
+                                NewW = 640,
+                                NewH = 640,
+                                Scale = 1.0,
+                                PadX = 0,
+                                PadY = 0
+                            };
+                        }
+
                         var drawBmp = (Bitmap)srcBmp.Clone();
 
-                        // 1) Khởi tạo ROI một lần
+                        // 1) Khởi tạo ROI một lần (trên khung 640×640)
                         if (_roiEnabled && _roiDisp.Width <= 0)
                         {
                             int w = (int)(srcBmp.Width * 0.50);
@@ -380,13 +447,15 @@ namespace Project_CK
                             _roiDisp = new Rectangle(x, y, w, h);
                         }
 
-                        // 2) Vẽ ROI: xanh lá nét liền
+                        // 2) Vẽ ROI
                         using (var gRoi = Graphics.FromImage(drawBmp))
                         using (var roiPen = new Pen(Color.Lime, 2))
+                        {
                             if (_roiEnabled && _roiDisp.Width >= 4 && _roiDisp.Height >= 4)
                                 gRoi.DrawRectangle(roiPen, _roiDisp);
+                        }
 
-                        // 3) Detect trong ROI
+                        // 3) YOLO detect trong ROI (tọa độ 640×640)
                         var dets = new List<YoloOnnxSafe.Det>();
                         if (_yolo != null && _roiEnabled)
                         {
@@ -398,6 +467,8 @@ namespace Project_CK
                                     using (var roiBmp = srcBmp.Clone(roi, PixelFormat.Format24bppRgb))
                                     {
                                         var detsRoi = _yolo.Infer(roiBmp);
+
+                                        // dịch box ROI-local -> ảnh 640 toàn cục
                                         dets = detsRoi.Select(d =>
                                             new YoloOnnxSafe.Det(
                                                 new RectangleF(d.Rect.X + roi.Left, d.Rect.Y + roi.Top, d.Rect.Width, d.Rect.Height),
@@ -405,7 +476,7 @@ namespace Project_CK
                                         ).ToList();
                                     }
 
-                                    // chỉ giữ box nằm trọn ROI
+                                    // chỉ giữ box nằm TRỌN ROI
                                     dets = dets.Where(d =>
                                     {
                                         int x1 = (int)Math.Floor(d.Rect.Left);
@@ -415,9 +486,9 @@ namespace Project_CK
                                         return _roiDisp.Contains(Rectangle.FromLTRB(x1, y1, x2, y2));
                                     }).ToList();
 
-                                    // lọc kích thước/aspect
-                                    const int MIN_W_PX = 24, MIN_H_PX = 24, MIN_AREA_PX = 24 * 24;
-                                    const float MIN_ASPECT = 0.5f, MAX_ASPECT = 2.0f;
+                                    // lọc kích thước/aspect trên 640×640
+                                    const int MIN_W_PX = 120, MIN_H_PX = 120, MIN_AREA_PX = 120 * 120;
+                                    const float MIN_ASPECT = 0.5f, MAX_ASPECT = 1.3f;
                                     dets = dets.Where(d =>
                                     {
                                         float w = d.Rect.Width, h = d.Rect.Height;
@@ -435,13 +506,14 @@ namespace Project_CK
                             }
                         }
 
-                        // 4) Tracking + gửi PLC khi vật vượt ROI 2 khung
+                        // 4) Tracking + (GỬI PLC được map ngược về khung gốc bên trong hàm của bạn)
+                        //    Lưu ý: hàm UpdateTracksAndSendPlcOnExit của bạn phải dùng _lastResizeMeta để map 640 -> gốc khi Missed==2
                         UpdateTracksAndSendPlcOnExit(dets);
 
-                        // 5) Vẽ theo track còn sống
+                        // 5) Vẽ theo track còn sống trên 640×640
                         DrawTracks(drawBmp);
 
-                        // 6) Cập nhật UI (GIỮ nguyên pictureBox)
+                        // 6) Cập nhật UI (giữ nguyên pictureBox 640×640)
                         var old = pictureBox.Image;
                         pictureBox.Image = drawBmp;
                         old?.Dispose();
@@ -452,11 +524,12 @@ namespace Project_CK
             _uiTimer = new System.Windows.Forms.Timer { Interval = Math.Max(1, 1000 / TARGET_FPS) };
             _uiTimer.Tick += (s2, ev2) =>
             {
-                // nếu bạn muốn đẩy qua _latestBmp thì dùng Interlocked như cũ;
-                // ở đây mình đẩy trực tiếp trong capture để đơn giản, nên timer có thể để trống
+                // nếu bạn dùng cơ chế _latestBmp thì cập nhật ở đây;
+                // hiện tại đã set trực tiếp Image ngay trong capture loop để đơn giản.
             };
             _uiTimer.Start();
         }
+
 
         ////////////////////////////////
         private static Bitmap PadToSquare640(Bitmap src)
@@ -512,26 +585,43 @@ namespace Project_CK
         {
             var matched = new HashSet<int>();
 
-            // gán det -> track
+            // --- 1) Gán detection -> track (làm việc trong không gian 640x640) ---
             foreach (var d in dets)
             {
                 var c = new PointF(d.Rect.X + d.Rect.Width / 2f, d.Rect.Y + d.Rect.Height / 2f);
-                int bestId = -1; float bestDist = float.MaxValue;
+
+                int bestId = -1;
+                float bestDist = float.MaxValue;
 
                 foreach (var kv in _tracks)
                 {
                     var t = kv.Value;
                     if (t.ClassId != d.ClassId) continue;
-                    float dx = t.Center.X - c.X, dy = t.Center.Y - c.Y;
+
+                    float dx = t.Center.X - c.X;
+                    float dy = t.Center.Y - c.Y;
                     float dist = (float)Math.Sqrt(dx * dx + dy * dy);
-                    if (dist < bestDist) { bestDist = dist; bestId = kv.Key; }
+
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestId = kv.Key;
+                    }
                 }
 
                 if (bestId >= 0 && bestDist <= MATCH_MAX_DIST_PX)
                 {
                     var t = _tracks[bestId];
-                    t.Rect = d.Rect; t.Center = c; t.Label = d.Label; t.Missed = 0;
-                    if (_roiEnabled && _roiDisp.Contains((int)c.X, (int)c.Y)) t.LastInRoiCenter = c;
+                    t.Rect = d.Rect;
+                    t.Center = c;
+                    t.Label = d.Label;
+                    t.Missed = 0;
+
+                    // lưu tâm cuối cùng còn nằm trong ROI (640x640)
+                    if (_roiEnabled && _roiDisp.Contains((int)c.X, (int)c.Y))
+                        t.LastInRoiCenter = c;
+
+                    _tracks[bestId] = t; // đảm bảo ghi lại nếu Track là struct
                     matched.Add(bestId);
                 }
                 else
@@ -551,27 +641,48 @@ namespace Project_CK
                 }
             }
 
-            // tăng Missed & xử lý vượt ROI 2 khung
+            // --- 2) Tăng Missed & khi Missed==2 thì map 640->1920->mm và gửi PLC ---
             var toRemove = new List<int>();
+
             foreach (var kv in _tracks)
             {
-                int id = kv.Key; var t = kv.Value;
+                int id = kv.Key;
+                var t = kv.Value;
+
                 if (!matched.Contains(id))
                 {
                     t.Missed++;
+                    _tracks[id] = t;
 
                     if (t.Missed == 2)
                     {
-                        int x_dint = (int)Math.Round(t.LastInRoiCenter.X);
-                        int y_dint = (int)Math.Round(t.LastInRoiCenter.Y);
+                        // (a) Map tọa độ tâm cuối cùng trong ROI từ 640x640 -> 1920x1080
+                        PointF p1920 = MapBackPoint_ResizedToOrig(t.LastInRoiCenter, _lastResizeMeta);
+
+                        // (b) Pixel(1920x1080) -> (Xw,Yw) mm trên mặt phẳng Z=0, cam cao 310mm
+                        var (Xw_mm, Yw_mm) = Pixel1920ToMm_OnPlane(p1920.X, p1920.Y);
+
+                        // ➊ Dự đoán sau DELAY theo **trục X** (băng tải chạy theo X)
+                        //    BELT_DIR_X = +1 nếu băng tải kéo vật về +X, -1 nếu ngược lại
+                        double Xw_future = -(Xw_mm - 90 );// + BELT_DIR_X * BELT_SPEED_MM_PER_S * BELT_DELAY_S;
+                        double Yw_future = Yw_mm; // Y giữ nguyên
+
+                        // (c) Gửi xuống PLC (int mm; đổi sang float nếu PLC dùng REAL)
                         short type = (short)t.ClassId;
-                        _plcQueue.Enqueue((x_dint, y_dint, type));
+                        int x_mm_dint = (int)Math.Round(Xw_future);   // ⬅️ dùng vị trí dự đoán theo X
+                        int y_mm_dint = (int)Math.Round(Yw_future);
+                        _plcQueue.Enqueue((x_mm_dint, y_mm_dint, type));
                     }
+
+                    // sau khi xử lý, xóa track nếu đã rời >= 2 khung như logic cũ
                     if (t.Missed >= 2) toRemove.Add(id);
                 }
             }
+
             foreach (var id in toRemove) _tracks.Remove(id);
         }
+
+
 
         private void DrawTracks(Bitmap drawBmp)
         {
@@ -607,6 +718,7 @@ namespace Project_CK
             }
         }
 
+
         private void StopEverything()
         {
             try { _uiTimer?.Stop(); _uiTimer?.Dispose(); _uiTimer = null; } catch { }
@@ -625,7 +737,103 @@ namespace Project_CK
 
             _tracks.Clear(); _nextTrackId = 1;
         }
+        ///10_15
+        private static Bitmap PadToSquare640WithMeta(Bitmap raw, out ResizeMeta meta)
+        {
+            int origW = raw.Width, origH = raw.Height;
+            int newW = 640, newH = 640;
 
+            double sx = (double)newW / origW;
+            double sy = (double)newH / origH;
+            double scale = Math.Min(sx, sy);
+            int drawW = (int)Math.Round(origW * scale);
+            int drawH = (int)Math.Round(origH * scale);
+            int padX = (newW - drawW) / 2;
+            int padY = (newH - drawH) / 2;
+
+            var dst = new Bitmap(newW, newH, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(dst))
+            {
+                g.Clear(Color.Black);
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                g.DrawImage(raw, new Rectangle(padX, padY, drawW, drawH));
+            }
+
+            meta = new ResizeMeta { OrigW = origW, OrigH = origH, NewW = newW, NewH = newH, Scale = scale, PadX = padX, PadY = padY };
+            return dst;
+        }
+
+        // Map NGƯỢC: điểm trong 640x640 (đã letterbox) -> về khung gốc (vd 1920x1080)
+        private static PointF MapBackPoint_ResizedToOrig(PointF p, in ResizeMeta m)
+        {
+            float u = (float)((p.X - m.PadX) / m.Scale);
+            float v = (float)((p.Y - m.PadY) / m.Scale);
+            return new PointF(u, v);
+        }
+        private (double Xw_mm, double Yw_mm) Pixel1920ToMm_OnPlane(double u1920, double v1920)
+        {
+            // 1) undistortPoints -> lấy tia chuẩn hoá (x_n, y_n) trong hệ camera
+            using var K = new Mat(3, 3, DepthType.Cv64F, 1);
+            K.SetTo(DoubleMatrixToArray(_K_1920));
+
+            using var dist = new Mat(_dist_1920.Length, 1, DepthType.Cv64F, 1);
+            dist.SetTo(_dist_1920);
+
+            // Dùng VectorOfPointF để tránh lỗi nhiều kênh
+            using var srcPts = new VectorOfPointF(new[] { new System.Drawing.PointF((float)u1920, (float)v1920) });
+            using var dstPts = new VectorOfPointF();
+            CvInvoke.UndistortPoints(srcPts, dstPts, K, dist, null, null);
+
+            var pNorm = dstPts[0];        // (x_n, y_n)
+            double xn = pNorm.X;
+            double yn = pNorm.Y;
+
+            // d_c = [x_n, y_n, 1]^T
+            double[] dc = new double[] { xn, yn, 1.0 };
+
+            // 2) Chuyển tia & tâm camera sang hệ world
+            var RT = Transpose3x3(_Rcw);              // R^T
+            var Cw = Negate(MulMatVec(RT, _tcw));     // Cw = -R^T * t  (với cấu hình top-down: (0,0,310))
+            var dw = MulMatVec(RT, dc);               // d_w = R^T * d_c
+
+            // 3) Giao tuyến với mặt phẳng Z = Z0_MM (ví dụ Z0=0)
+            double lambda = (Z0_MM - Cw[2]) / dw[2];
+            double Xw = Cw[0] + lambda * dw[0];
+            double Yw = Cw[1] + lambda * dw[1];
+
+            return (Xw, Yw);
+        }
+
+        // ===== Helpers nho nhỏ =====
+        private static double[] DoubleMatrixToArray(double[,] M)
+        {
+            int r = M.GetLength(0), c = M.GetLength(1);
+            var arr = new double[r * c];
+            int k = 0;
+            for (int i = 0; i < r; i++)
+                for (int j = 0; j < c; j++)
+                    arr[k++] = M[i, j];
+            return arr;
+        }
+        private static double[,] Transpose3x3(double[,] A)
+        {
+            return new double[,] {
+        { A[0,0], A[1,0], A[2,0] },
+        { A[0,1], A[1,1], A[2,1] },
+        { A[0,2], A[1,2], A[2,2] },
+    };
+        }
+        private static double[] MulMatVec(double[,] M, double[] v)
+        {
+            return new double[] {
+        M[0,0]*v[0] + M[0,1]*v[1] + M[0,2]*v[2],
+        M[1,0]*v[0] + M[1,1]*v[1] + M[1,2]*v[2],
+        M[2,0]*v[0] + M[2,1]*v[1] + M[2,2]*v[2],
+    };
+        }
+        private static double[] Negate(double[] v) => new double[] { -v[0], -v[1], -v[2] };
         ////////////////////////////////
 
         private void btn_stopvideo_click(object sender, EventArgs e)
