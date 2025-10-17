@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "bn+J2J0oXxk=",
+  "dgSpecHash": "979FlHr89M4=",
   "success": true,
-  "projectFilePath": "C:\\Users\\Hoang\\Documents\\10_15\\Project_CK\\Project_CK\\Project_CK.csproj",
+  "projectFilePath": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Hoang\\.nuget\\packages\\emgu.cv\\4.12.0.5764\\emgu.cv.4.12.0.5764.nupkg.sha512",
     "C:\\Users\\Hoang\\.nuget\\packages\\emgu.cv.bitmap\\4.12.0.5764\\emgu.cv.bitmap.4.12.0.5764.nupkg.sha512",
@@ -46,9 +46,9 @@
       "code": "NU1701",
       "level": "Warning",
       "message": "Package 'OpenCVSharp 2.4.0.1' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net8.0-windows7.0'. This package may not be fully compatible with your project.",
-      "projectPath": "C:\\Users\\Hoang\\Documents\\10_15\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "projectPath": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj",
       "warningLevel": 1,
-      "filePath": "C:\\Users\\Hoang\\Documents\\10_15\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "filePath": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj",
       "libraryId": "OpenCVSharp",
       "targetGraphs": [
         "net8.0-windows7.0"

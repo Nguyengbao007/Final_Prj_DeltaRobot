@@ -98,7 +98,7 @@ namespace Project_CK
         private YoloOnnxSafe _yolo;
         private bool _roiEnabled = true;
         private Rectangle _roiDisp = Rectangle.Empty; // ROI cố định theo ảnh hiển thị
-        class Track
+        public struct Track
         {
             public int Id;
             public RectangleF Rect;
@@ -107,6 +107,12 @@ namespace Project_CK
             public string Label;
             public int Missed;
             public PointF LastInRoiCenter;
+            public DateTime? Missed2AtUtc;
+
+            // ➕ THÊM 3 TRƯỜNG NÀY
+            public double X0_mm;        // X (mm) tại thời điểm rời ROI (Missed==2)
+            public double Y0_mm;        // Y (mm) tại thời điểm rời ROI (Missed==2)
+            public double XRobotFixed;  // Giá trị X (sau offset/rotate) cố định để gửi liên tục
         }
         private readonly Dictionary<int, Track> _tracks = new Dictionary<int, Track>();
         private int _nextTrackId = 1;
@@ -116,7 +122,6 @@ namespace Project_CK
         private const int SCALE_DEN = 1;
         // ---------- PLC ----------
         public S7Client plc;
-        private readonly ConcurrentQueue<(int X, int Y, short Type)> _plcQueue = new();
         private CancellationTokenSource _plcCts;
         private Task _plcTask;
         // ---------- UI ----------
@@ -125,7 +130,8 @@ namespace Project_CK
         private const int DB_NUMBER = 49;   // ví dụ DB1
         private const int OFF_X_DINT = 0;  // DBB0..3
         private const int OFF_Y_DINT = 4;  // DBB4..7
-        private const int OFF_T_INT = 8;  // DBB8..9
+        private const int OFF_T_INT = 12;  // DBB8..9
+        private const int OFF_Z_DINT = 8;
 
 
         //10_15
@@ -173,13 +179,19 @@ namespace Project_CK
 
         // t = (0, 0, 310) để tâm camera Cw = -R^T t = (0,0,310)
         private readonly double[] _tcw = new double[] { 0, 0, CAM_HEIGHT };
+        private readonly Queue<(int X, int Y, int Z, short Type)> _plcQueue = new();
+        private readonly List<(DateTime DueUtc, int X, int Y, int Z, short Type)> _delayedPlc = new();
 
+        // vị trí mm tại thời điểm Missed==2
+        private readonly Dictionary<int, double> _exitMmX = new();
+        private readonly Dictionary<int, double> _exitMmY = new();
 
-        private const double BELT_SPEED_MM_PER_S = 10.0;  // ví dụ 150 mm/s
-        private const double BELT_DELAY_S = 4.0;           // dự đoán sau 2 giây
-        private const int BELT_DIR = -1;                    // +1 nếu băng tải chạy theo +Y, -1 nếu ngược
-        const int BELT_DIR_X = +1;
-        const int kc_x_camera = -260;
+        // hàng đợi gửi trễ (bạn đang có sẵn _delayedPlc + SEND_DELAY_S)
+        private const double SEND_DELAY_S = 7.0;          // gửi sau 7 giây kể từ Missed==2
+        private const int BELT_DIR_X = +1;           // +1 dọc +X; -1 dọc -X; 0 nếu băng tải không theo X
+        private const int BELT_DIR_Y = 0;           // +1 dọc +Y; -1 dọc -Y; 0 nếu băng tải không theo Y
+        private const double BELT_SPEED_MM_PER_S = 200.0; // có thể cập nhật runtime theo PLC
+        private const double OUT_LIFETIME_S = 12.0;       // xoá track sau 12s kể từ Missed==2
 
         public Form2()
         {
@@ -215,7 +227,7 @@ namespace Project_CK
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 500;
             numericUpDown_y.Increment = 1;
-            _roiDisp = new Rectangle(45, 200, 220, 320);
+            _roiDisp = new Rectangle(90, 200, 240, 320);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -558,7 +570,7 @@ namespace Project_CK
                 _plcCts = new CancellationTokenSource();
                 _plcTask = Task.Run(() =>
                 {
-                    var buf = new byte[10]; // 2 DINT (8 byte) + 1 INT (2 byte)
+                    var buf = new byte[14]; // 2 DINT (8 byte) + 1 INT (2 byte)
                     while (!_plcCts.IsCancellationRequested)
                     {
                         try
@@ -568,6 +580,7 @@ namespace Project_CK
                                 Array.Clear(buf, 0, buf.Length);
                                 S7.SetDIntAt(buf, OFF_X_DINT, item.X);
                                 S7.SetDIntAt(buf, OFF_Y_DINT, item.Y);
+                                S7.SetDIntAt(buf, OFF_Z_DINT, item.Z);
                                 S7.SetIntAt(buf, OFF_T_INT, item.Type);
 
                                 // Viết 1 lần cả block để tránh ghi đè “nguyên byte”
@@ -583,13 +596,19 @@ namespace Project_CK
         }
         private void UpdateTracksAndSendPlcOnExit(List<YoloOnnxSafe.Det> dets)
         {
-            var matched = new HashSet<int>();
+            // ===== Cấu hình băng tải =====
+            const double BELT_SPEED_MM_PER_S = 20.0;   // tốc độ băng tải (mm/s)
+            const int BELT_DIR_Y = +1;     // +1 nếu chạy theo +Y, -1 nếu ngược lại
+            const double OUT_LIFETIME_S = 12.0;   // xóa track sau khi vật ở ngoài ROI >12s
+            double Z0_MM = -310;  // Z cố định (mm)
 
-            // --- 1) Gán detection -> track (làm việc trong không gian 640x640) ---
+            var matched = new HashSet<int>();
+            var nowUtc = DateTime.UtcNow;
+
+            // --- 1) Match detection -> track ---
             foreach (var d in dets)
             {
                 var c = new PointF(d.Rect.X + d.Rect.Width / 2f, d.Rect.Y + d.Rect.Height / 2f);
-
                 int bestId = -1;
                 float bestDist = float.MaxValue;
 
@@ -597,16 +616,9 @@ namespace Project_CK
                 {
                     var t = kv.Value;
                     if (t.ClassId != d.ClassId) continue;
-
-                    float dx = t.Center.X - c.X;
-                    float dy = t.Center.Y - c.Y;
+                    float dx = t.Center.X - c.X, dy = t.Center.Y - c.Y;
                     float dist = (float)Math.Sqrt(dx * dx + dy * dy);
-
-                    if (dist < bestDist)
-                    {
-                        bestDist = dist;
-                        bestId = kv.Key;
-                    }
+                    if (dist < bestDist) { bestDist = dist; bestId = kv.Key; }
                 }
 
                 if (bestId >= 0 && bestDist <= MATCH_MAX_DIST_PX)
@@ -616,12 +628,12 @@ namespace Project_CK
                     t.Center = c;
                     t.Label = d.Label;
                     t.Missed = 0;
+                    t.Missed2AtUtc = null;
 
-                    // lưu tâm cuối cùng còn nằm trong ROI (640x640)
                     if (_roiEnabled && _roiDisp.Contains((int)c.X, (int)c.Y))
                         t.LastInRoiCenter = c;
 
-                    _tracks[bestId] = t; // đảm bảo ghi lại nếu Track là struct
+                    _tracks[bestId] = t;
                     matched.Add(bestId);
                 }
                 else
@@ -634,14 +646,18 @@ namespace Project_CK
                         ClassId = d.ClassId,
                         Label = d.Label,
                         Missed = 0,
-                        LastInRoiCenter = c
+                        LastInRoiCenter = c,
+                        Missed2AtUtc = null,
+                        X0_mm = 0,
+                        Y0_mm = 0,
+                        XRobotFixed = 0
                     };
                     _tracks[t.Id] = t;
                     matched.Add(t.Id);
                 }
             }
 
-            // --- 2) Tăng Missed & khi Missed==2 thì map 640->1920->mm và gửi PLC ---
+            // --- 2) Xử lý vật không match (rời ROI) ---
             var toRemove = new List<int>();
 
             foreach (var kv in _tracks)
@@ -649,38 +665,77 @@ namespace Project_CK
                 int id = kv.Key;
                 var t = kv.Value;
 
-                if (!matched.Contains(id))
+                if (matched.Contains(id))
+                    continue;
+
+                t.Missed++;
+
+                // Khi vật vừa rời ROI (Missed == 2)
+                if (t.Missed == 2 && t.Missed2AtUtc == null)
                 {
-                    t.Missed++;
-                    _tracks[id] = t;
+                    t.Missed2AtUtc = nowUtc;
 
-                    if (t.Missed == 2)
+                    // 640x640 → 1920x1080 → mm
+                    PointF p1920_exit = MapBackPoint_ResizedToOrig(t.LastInRoiCenter, _lastResizeMeta);
+                    var (X0_mm, Y0_mm) = Pixel1920ToMm_OnPlane(p1920_exit.X, p1920_exit.Y);
+                    t.X0_mm = X0_mm;
+                    t.Y0_mm = Y0_mm;
+
+                    // X cố định sau offset
+                    double Xw_off = -(X0_mm - 110);
+                    double Yw_off = -(Y0_mm - 250);
+                    t.XRobotFixed = Xw_off;
+                }
+
+                // Nếu đã có mốc rời ROI → gửi liên tục
+                if (t.Missed2AtUtc.HasValue)
+                {
+                    double dt_s = (nowUtc - t.Missed2AtUtc.Value).TotalSeconds;
+                    if (dt_s < 0) dt_s = 0;
+
+                    // Y di chuyển theo vận tốc băng tải
+                    double Yw_mm = t.Y0_mm + BELT_DIR_Y * BELT_SPEED_MM_PER_S * dt_s;
+                    double Xw_mm = t.X0_mm; // X cố định
+
+                    // Offset
+                    double Xw_off = -(Xw_mm - 110);
+                    double Yw_off = -(Yw_mm - 250);
+
+                    // 🔧 Bù X và Y nếu cần
+                    if (Xw_off < -40)
                     {
-                        // (a) Map tọa độ tâm cuối cùng trong ROI từ 640x640 -> 1920x1080
-                        PointF p1920 = MapBackPoint_ResizedToOrig(t.LastInRoiCenter, _lastResizeMeta);
-
-                        // (b) Pixel(1920x1080) -> (Xw,Yw) mm trên mặt phẳng Z=0, cam cao 310mm
-                        var (Xw_mm, Yw_mm) = Pixel1920ToMm_OnPlane(p1920.X, p1920.Y);
-
-                        // ➊ Dự đoán sau DELAY theo **trục X** (băng tải chạy theo X)
-                        //    BELT_DIR_X = +1 nếu băng tải kéo vật về +X, -1 nếu ngược lại
-                        double Xw_future = -(Xw_mm - 90 );// + BELT_DIR_X * BELT_SPEED_MM_PER_S * BELT_DELAY_S;
-                        double Yw_future = Yw_mm; // Y giữ nguyên
-
-                        // (c) Gửi xuống PLC (int mm; đổi sang float nếu PLC dùng REAL)
-                        short type = (short)t.ClassId;
-                        int x_mm_dint = (int)Math.Round(Xw_future);   // ⬅️ dùng vị trí dự đoán theo X
-                        int y_mm_dint = (int)Math.Round(Yw_future);
-                        _plcQueue.Enqueue((x_mm_dint, y_mm_dint, type));
+                        Xw_off += -20;
+                        Yw_off -= -30;
+                        Z0_MM = -300;
                     }
 
-                    // sau khi xử lý, xóa track nếu đã rời >= 2 khung như logic cũ
-                    if (t.Missed >= 2) toRemove.Add(id);
+                    // Gửi xuống PLC (X, Y, Z, Type)
+                    short type = (short)t.ClassId;
+                    int x_mm_dint = (int)Math.Round(Xw_off);
+                    int y_mm_dint = (int)Math.Round(Yw_off);
+                    int z_mm_dint = (int)Math.Round(Z0_MM); // Z cố định
+
+                    _plcQueue.Enqueue((x_mm_dint, y_mm_dint, z_mm_dint, type));
+
+                    // Xóa track sau OUT_LIFETIME_S
+                    if (dt_s > OUT_LIFETIME_S)
+                        toRemove.Add(id);
                 }
+
+                _tracks[id] = t;
             }
 
-            foreach (var id in toRemove) _tracks.Remove(id);
+            foreach (var id in toRemove)
+                _tracks.Remove(id);
+
+            // --- 3) Gửi các item đến hạn (nếu có) ---
+            SendDuePlcIfAny();
         }
+
+
+
+
+
 
 
 
@@ -834,6 +889,20 @@ namespace Project_CK
     };
         }
         private static double[] Negate(double[] v) => new double[] { -v[0], -v[1], -v[2] };
+
+        private void SendDuePlcIfAny()
+        {
+            var nowUtc = DateTime.UtcNow;
+            for (int i = _delayedPlc.Count - 1; i >= 0; i--)
+            {
+                if (_delayedPlc[i].DueUtc <= nowUtc)
+                {
+                    var msg = _delayedPlc[i];
+                    _plcQueue.Enqueue((msg.X, msg.Y, msg.Z, msg.Type));
+                    _delayedPlc.RemoveAt(i);
+                }
+            }
+        }
         ////////////////////////////////
 
         private void btn_stopvideo_click(object sender, EventArgs e)
