@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj": {}
+    "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj": {
+    "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj",
+        "projectUniqueName": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj",
         "projectName": "Project_CK",
-        "projectPath": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\Project_CK.csproj",
+        "projectPath": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj",
         "packagesPath": "C:\\Users\\Hoang\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Hoang\\Documents\\10_16\\Project_CK\\Project_CK\\obj\\",
+        "outputPath": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -69,11 +69,7 @@
             },
             "Microsoft.ML.OnnxRuntime": {
               "target": "Package",
-              "version": "[1.23.0, )"
-            },
-            "OpenCVSharp": {
-              "target": "Package",
-              "version": "[2.4.0.1, )"
+              "version": "[1.23.2, )"
             },
             "Sharp7": {
               "target": "Package",
@@ -99,7 +95,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.300/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
