@@ -205,10 +205,10 @@
           }
         }
       },
-      "Microsoft.ML.OnnxRuntime/1.23.2": {
+      "Microsoft.ML.OnnxRuntime/1.23.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.ML.OnnxRuntime.Managed": "1.23.2"
+          "Microsoft.ML.OnnxRuntime.Managed": "1.23.0"
         },
         "build": {
           "build/netstandard2.1/Microsoft.ML.OnnxRuntime.props": {},
@@ -281,7 +281,7 @@
           }
         }
       },
-      "Microsoft.ML.OnnxRuntime.Managed/1.23.2": {
+      "Microsoft.ML.OnnxRuntime.Managed/1.23.0": {
         "type": "package",
         "dependencies": {
           "System.Memory": "4.5.5",
@@ -339,6 +339,29 @@
             "assetType": "runtime",
             "rid": "win"
           }
+        }
+      },
+      "OpenCVSharp/2.4.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/OpenCvSharp.Blob.dll": {},
+          "lib/OpenCvSharp.CPlusPlus.dll": {},
+          "lib/OpenCvSharp.DebuggerVisualizers.dll": {},
+          "lib/OpenCvSharp.Extensions.dll": {},
+          "lib/OpenCvSharp.Gpu.dll": {},
+          "lib/OpenCvSharp.MachineLearning.dll": {},
+          "lib/OpenCvSharp.UserInterface.dll": {},
+          "lib/OpenCvSharp.dll": {}
+        },
+        "runtime": {
+          "lib/OpenCvSharp.Blob.dll": {},
+          "lib/OpenCvSharp.CPlusPlus.dll": {},
+          "lib/OpenCvSharp.DebuggerVisualizers.dll": {},
+          "lib/OpenCvSharp.Extensions.dll": {},
+          "lib/OpenCvSharp.Gpu.dll": {},
+          "lib/OpenCvSharp.MachineLearning.dll": {},
+          "lib/OpenCvSharp.UserInterface.dll": {},
+          "lib/OpenCvSharp.dll": {}
         }
       },
       "runtime.native.System/4.3.0": {
@@ -839,10 +862,10 @@
         "runtimes/win-x86/native/vcruntime140.dll"
       ]
     },
-    "Microsoft.ML.OnnxRuntime/1.23.2": {
-      "sha512": "849xImRO0vxDH7DNlg/FAVGExKfjN1r2CIZevZGI5JQCoOj+0T23ShqPEgu5mLTwElot5X7V0qkO0jUz/yJZbA==",
+    "Microsoft.ML.OnnxRuntime/1.23.0": {
+      "sha512": "R/7UnmdaiYj8cqsL/ubpZ7Fq6LjHwhe+esFO4eJCsR1t803ZVQg3XadC25XPh2cB+cbOFS3RcIdYVA/PJzW2DA==",
       "type": "package",
-      "path": "microsoft.ml.onnxruntime/1.23.2",
+      "path": "microsoft.ml.onnxruntime/1.23.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -874,7 +897,7 @@
         "buildTransitive/net8.0-android31.0/Microsoft.ML.OnnxRuntime.targets",
         "buildTransitive/net8.0-ios15.4/Microsoft.ML.OnnxRuntime.targets",
         "buildTransitive/net8.0-maccatalyst14.0/_._",
-        "microsoft.ml.onnxruntime.1.23.2.nupkg.sha512",
+        "microsoft.ml.onnxruntime.1.23.0.nupkg.sha512",
         "microsoft.ml.onnxruntime.nuspec",
         "runtimes/android/native/onnxruntime.aar",
         "runtimes/ios/native/onnxruntime.xcframework.zip",
@@ -894,10 +917,10 @@
         "runtimes/win-x64/native/onnxruntime_providers_shared.lib"
       ]
     },
-    "Microsoft.ML.OnnxRuntime.Managed/1.23.2": {
-      "sha512": "HtlQuzmVrqhnkmwfmkQ+2re8xPxtVmeLRQaYSJ3pXfzKs4b36+yBfa/LnDuzfX1bGcyWn/McKxmbY87TCAmo1Q==",
+    "Microsoft.ML.OnnxRuntime.Managed/1.23.0": {
+      "sha512": "YsvYcS/Xp9QW/cN+FqC7iX66eIaV1hDeNLgCjNzY/4HU3J9+ABk5QVqpP1YgcSmOouVq0+/IBR0FYKvLYQi+4g==",
       "type": "package",
-      "path": "microsoft.ml.onnxruntime.managed/1.23.2",
+      "path": "microsoft.ml.onnxruntime.managed/1.23.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -918,7 +941,7 @@
         "lib/net8.0/Microsoft.ML.OnnxRuntime.pdb",
         "lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll",
         "lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb",
-        "microsoft.ml.onnxruntime.managed.1.23.2.nupkg.sha512",
+        "microsoft.ml.onnxruntime.managed.1.23.0.nupkg.sha512",
         "microsoft.ml.onnxruntime.managed.nuspec"
       ]
     },
@@ -982,6 +1005,33 @@
         "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.dll",
         "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.xml",
         "useSharedDesignerContext.txt"
+      ]
+    },
+    "OpenCVSharp/2.4.0.1": {
+      "sha512": "tGa7NCBHvUCbZRo+YbmY6bMgw/iFikXqrHSzLtg0BIRWH1hp/lbzNm3VQUq0wr6UXeHQf12hiRWEMuGGhIks4w==",
+      "type": "package",
+      "path": "opencvsharp/2.4.0.1",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "content/OpenCvSharp.Blob.dll.config",
+        "content/OpenCvSharp.CPlusPlus.dll.config",
+        "content/OpenCvSharp.MachineLearning.dll.config",
+        "content/OpenCvSharp.dll.config",
+        "content/OpenCvSharpExtern.dll",
+        "content/libOpenCvSharpExtern.so",
+        "lib/OpenCvSharp.Blob.dll",
+        "lib/OpenCvSharp.CPlusPlus.dll",
+        "lib/OpenCvSharp.DebuggerVisualizers.dll",
+        "lib/OpenCvSharp.Extensions.dll",
+        "lib/OpenCvSharp.Gpu.dll",
+        "lib/OpenCvSharp.MachineLearning.dll",
+        "lib/OpenCvSharp.UserInterface.dll",
+        "lib/OpenCvSharp.dll",
+        "opencvsharp.2.4.0.1.nupkg.sha512",
+        "opencvsharp.nuspec",
+        "tools/install.ps1"
       ]
     },
     "runtime.native.System/4.3.0": {
@@ -2220,7 +2270,8 @@
       "Emgu.CV.Bitmap >= 4.12.0.5764",
       "Emgu.CV.UI >= 4.12.0.5764",
       "Emgu.CV.runtime.windows >= 4.12.0.5764",
-      "Microsoft.ML.OnnxRuntime >= 1.23.2",
+      "Microsoft.ML.OnnxRuntime >= 1.23.0",
+      "OpenCVSharp >= 2.4.0.1",
       "Sharp7 >= 1.1.84"
     ]
   },
@@ -2231,11 +2282,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "projectUniqueName": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Project_CK.csproj",
       "projectName": "Project_CK",
-      "projectPath": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "projectPath": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Project_CK.csproj",
       "packagesPath": "C:\\Users\\Hoang\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Hoang\\Documents\\10_20\\Project_CK\\Project_CK\\obj\\",
+      "outputPath": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -2293,7 +2344,11 @@
           },
           "Microsoft.ML.OnnxRuntime": {
             "target": "Package",
-            "version": "[1.23.2, )"
+            "version": "[1.23.0, )"
+          },
+          "OpenCVSharp": {
+            "target": "Package",
+            "version": "[2.4.0.1, )"
           },
           "Sharp7": {
             "target": "Package",
@@ -2322,5 +2377,17 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'OpenCVSharp 2.4.0.1' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net8.0-windows7.0'. This package may not be fully compatible with your project.",
+      "libraryId": "OpenCVSharp",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
 }

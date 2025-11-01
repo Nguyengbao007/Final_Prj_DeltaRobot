@@ -25,8 +25,8 @@ namespace Project_CK
 {
     public partial class Form2 : Form
     {
-        public double ee = 40;     // end effector
-        public double ff = 60;// base
+        public double ee = 40;     
+        public double ff = 60;
         public double re = 310;
         public double rf = 150;
         const Double sqrt3 = 1.732;
@@ -51,8 +51,8 @@ namespace Project_CK
         private System.Windows.Forms.Timer _uiTimer;
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
  
-        private readonly string[] _labels = { "Bo", "cookie_trang", "Cookie_xanh", "Dao", "Green", "Red", "Socola", "Xoai", "Yellow" };
-        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\10_20\Project_CK\Project_CK\best (2).onnx";
+        private readonly string[] _labels = { "green_cake", "red_cake", "yellow_cake" };
+        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\nhap\Project_CK\Project_CK\best.onnx";
         
         
         private volatile int _brightness = 0;   // -100..+100
@@ -133,17 +133,6 @@ namespace Project_CK
         private const int OFF_T_INT = 12;  // DBB8..9
         private const int OFF_Z_DINT = 8;
 
-
-        //10_15
-        // --- Lọc box nhỏ ---
-        private const int MIN_W_PX = 24;       // bề rộng tối thiểu (px)
-        private const int MIN_H_PX = 24;       // bề cao  tối thiểu (px)
-        private const int MIN_AREA_PX = 24 * 24;  // diện tích tối thiểu (px^2)
-        private const float MIN_ASPECT = 0.5f;     // w/h tối thiểu
-        private const float MAX_ASPECT = 2.0f;     // w/h tối đa
-        private const float MIN_ROI_AREA_RATIO = 0.004f; // 0.4% diện tích ROI (lọc theo tỉ lệ)
-        private const float CONTAIN_SUPPRESS_IOU = 0.5f; // nms đơn giản cho box chồng
-        // ===== Meta cho letterbox raw -> 640x640 =====
         struct ResizeMeta
         {
             public int OrigW, OrigH;     // kích thước ảnh gốc (vd 1920x1080)
@@ -157,19 +146,18 @@ namespace Project_CK
         private const double Z0_MM = 0.0;          // mặt phẳng băng tải là Z=0
         private const double CAM_HEIGHT = -300.0;   // camera cao 310mm so với mặt phẳng
 
-        // --- K (1920x1080) bạn đã cung cấp ---
+        // ===================== CẤU HÌNH CAMERA ======================
         private readonly double[,] _K_1920 = new double[,]
         {
     { 1474.9241195700, 0.0000000000, 953.0940681343 },
-    { 0.0000000000, 1476.6458229523, 526.5786938637 },
-    { 0.0000000000, 0.0000000000, 1.0000000000 }
+    { 0.0000000000,   1476.6458229523, 526.5786938637 },
+    { 0.0000000000,    0.0000000000,   1.0000000000 }
         };
 
-        // Nếu chưa có distortion thực, tạm dùng zero
-        private readonly double[] _dist_1920 = new double[] { 0, 0, 0, 0, 0 };
-
+        // Chiều cao camera so với mặt phẳng làm việc (mm)
+        private const double CAMERA_HEIGHT_MM = 310.0;
         // --- Extrinsic world->camera (Rcw, tcw) cho top-down (không nghiêng) ---
- private readonly double[,] _Rcw = new double[,]
+        private readonly double[,] _Rcw = new double[,]
 {
     { 1, 0, 0 },
     { 0, 1, 0 },
@@ -185,35 +173,59 @@ namespace Project_CK
         // vị trí mm tại thời điểm Missed==2
         private readonly Dictionary<int, double> _exitMmX = new();
         private readonly Dictionary<int, double> _exitMmY = new();
+                                                          // ==== FIFO tuần tự gửi xuống PLC ====
+        private readonly Queue<int> _sendQueue = new();   // id track chờ phục vụ
+        private readonly HashSet<int> _queuedIds = new(); // chống enqueue trùng
+        private int? _activeTrackId = null;               // id đang phục vụ
+        private const double SCALE_CORR = 2.0;
 
-        // hàng đợi gửi trễ (bạn đang có sẵn _delayedPlc + SEND_DELAY_S)
-        private const double SEND_DELAY_S = 7.0;          // gửi sau 7 giây kể từ Missed==2
-        private const int BELT_DIR_X = +1;           // +1 dọc +X; -1 dọc -X; 0 nếu băng tải không theo X
-        private const int BELT_DIR_Y = 0;           // +1 dọc +Y; -1 dọc -Y; 0 nếu băng tải không theo Y
-        private const double BELT_SPEED_MM_PER_S = 200.0; // có thể cập nhật runtime theo PLC
-        private const double OUT_LIFETIME_S = 12.0;       // xoá track sau 12s kể từ Missed==2
+        // Nếu mất detect nhiều frame liên tiếp (do che khuất) thì mới xem là "mất hẳn"
+        private const int MISS_LOST_FRAMES = 1;          // bạn muốn chặt hơn có thể tăng lên 15-20
+
+        private bool InRoi(PointF p)
+            => _roiEnabled && _roiDisp.Contains((int)p.X, (int)p.Y);
+
+        // ===== Homography (ảnh 1920×1080 pixel -> world mm) =====
+        private static readonly double[,] H_IMG2W = new double[,]
+        {
+    { 1,  0  , 0 },
+    { 0, 1, 0 },
+    { 0,  0,   1 }
+         };
+
+        // Áp dụng H: (u,v) pixel (1920×1080) -> (X,Y) mm
+        private static (double Xmm, double Ymm) ApplyH_ImgToWorld(double u, double v)
+        {
+            double x = H_IMG2W[0, 0] * u + H_IMG2W[0, 1] * v + H_IMG2W[0, 2];
+            double y = H_IMG2W[1, 0] * u + H_IMG2W[1, 1] * v + H_IMG2W[1, 2];
+            double w = H_IMG2W[2, 0] * u + H_IMG2W[2, 1] * v + H_IMG2W[2, 2];
+            if (Math.Abs(w) < 1e-12) w = 1e-12;
+            return (x / w, y / w);
+        }
+
+        // Tiện: tâm box trong 640×640 -> mm (dựa vào _lastResizeMeta)
+        private (double Xmm, double Ymm) Pixel640ToMm(PointF p640)
+        {
+            var p1920 = MapBackPoint_ResizedToOrig(p640, _lastResizeMeta);
+            return ApplyH_ImgToWorld(p1920.X, p1920.Y);
+        }
 
         public Form2()
         {
             InitializeComponent();
             plc = new S7Client();
-            var labels = new[]
- {
-    "Bo", "cookie_trang", "Cookie_xanh", "Dao",
-    "Green", "Red", "Socola", "Xoai", "Yellow"
-};
-
+            var labels = new[] { "black", "milk", "chocolate" };
             var yolo = new YoloOnnxSafe(
-                onnxPath: @"C:\Users\Hoang\Documents\10_20\Project_CK\Project_CK\best (2).onnx",
+                onnxPath: @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx",
                 classNames: labels,
-                useDirectML: false,
+                useDirectML: false,   // bật true nếu bạn có DML GPU
                 inputW: 640, inputH: 640
             )
             {
-                ScoreThresh = 0.80f,
+                ScoreThresh = 0.20f,
                 NmsThresh = 0.45f
             };
-
+            
 
             // cấu hình combobox PLC
             combox_plc.Items.Add("192.168.0.1");   // ví dụ IP S7-1200
@@ -222,16 +234,17 @@ namespace Project_CK
             UpdateStatus(false);
             numericUpDown_z.Minimum = -400;   // giới hạn nhỏ nhất
             numericUpDown_z.Maximum = -200;
-            numericUpDown_z.Increment = 1M;
-            numericUpDown_x.Minimum = -140;   // giới hạn nhỏ nhất
-            numericUpDown_x.Maximum = 140;
-            numericUpDown_x.Increment = 10M;
-            numericUpDown_y.Minimum = -140;   // giới hạn nhỏ nhất
-            numericUpDown_y.Maximum = 140;
-            numericUpDown_y.Increment = 10M;
+            numericUpDown_z.Increment = 0.1M;
+            numericUpDown_x.Minimum = -120;   // giới hạn nhỏ nhất
+            numericUpDown_x.Maximum = 120;
+            numericUpDown_x.Increment = 0.1M;
+            numericUpDown_y.Minimum = -120;   // giới hạn nhỏ nhất
+            numericUpDown_y.Maximum = 120;
+            numericUpDown_y.Increment = 0.1M;
             numericUpDown_vel.Minimum = 0;
             numericUpDown_vel.Maximum = 3000;
-            _roiDisp = new Rectangle(90, 200, 240, 280);
+            numericUpDown_y.Increment = 1;
+            _roiDisp = new Rectangle(80, 140, 240, 340);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -398,17 +411,8 @@ namespace Project_CK
         }
         ////////////////////////////////
         ////////////////////////////////
-        private void InitFixedRoiIfNeeded(int imgW, int imgH)
-        {
-            if (_roiDisp.Width > 0) return;
-            // ví dụ: ROI = 50% chiều rộng x 45% chiều cao, đặt giữa
-            int w = (int)(imgW * 0.50);
-            int h = (int)(imgH * 0.45);
-            int x = (imgW - w) / 2;
-            int y = (imgH - h) / 2;
-            _roiDisp = new Rectangle(x, y, w, h);
-        }
 
+        // ===================== Handler: Start Video (đã tích hợp zoom) =====================
         private void btn_startvideo_Click(object sender, EventArgs e)
         {
             if (_cap != null) return;
@@ -424,6 +428,9 @@ namespace Project_CK
 
             _cts = new CancellationTokenSource();
 
+            // 👉 Zoom nhẹ 1.2x (bạn có thể đổi: 1.1f, 1.3f, 1.5f, ...)
+            const float ZOOM_FACTOR = 1.2f;
+
             _captureTask = Task.Run(() =>
             {
                 using var frame = new Mat();
@@ -432,12 +439,13 @@ namespace Project_CK
                     if (!_cap.Read(frame) || frame.IsEmpty) { Thread.Sleep(1); continue; }
 
                     using (var rawBmp = frame.ToBitmap())
-                    using (var srcBmp = (rawBmp.Width == 640 && rawBmp.Height == 640)
-                                         ? (Bitmap)rawBmp.Clone()
-                                         : PadToSquare640WithMeta(rawBmp, out _lastResizeMeta)) // lưu meta để map ngược khi gửi PLC
+                    using (var zoomBmp = ApplyCenterZoom(rawBmp, ZOOM_FACTOR))  // <— áp dụng ZOOM ở đây
+                    using (var srcBmp = (zoomBmp.Width == 640 && zoomBmp.Height == 640)
+                                         ? (Bitmap)zoomBmp.Clone()
+                                         : PadToSquare640WithMeta(zoomBmp, out _lastResizeMeta)) // meta map ngược
                     {
                         // nếu nguồn vốn đã là 640x640 thì set meta identity để pipeline thống nhất
-                        if (rawBmp.Width == 640 && rawBmp.Height == 640)
+                        if (zoomBmp.Width == 640 && zoomBmp.Height == 640)
                         {
                             _lastResizeMeta = new ResizeMeta
                             {
@@ -480,7 +488,7 @@ namespace Project_CK
                             {
                                 try
                                 {
-                                    using (var roiBmp = srcBmp.Clone(roi, PixelFormat.Format24bppRgb))
+                                    using (var roiBmp = srcBmp.Clone(roi, System.Drawing.Imaging.PixelFormat.Format24bppRgb))
                                     {
                                         var detsRoi = _yolo.Infer(roiBmp);
 
@@ -522,8 +530,7 @@ namespace Project_CK
                             }
                         }
 
-                        // 4) Tracking + (GỬI PLC được map ngược về khung gốc bên trong hàm của bạn)
-                        //    Lưu ý: hàm UpdateTracksAndSendPlcOnExit của bạn phải dùng _lastResizeMeta để map 640 -> gốc khi Missed==2
+                        // 4) Tracking + gửi PLC (logic bạn đang dùng)
                         UpdateTracksAndSendPlcOnExit(dets);
 
                         // 5) Vẽ theo track còn sống trên 640×640
@@ -538,12 +545,42 @@ namespace Project_CK
             });
 
             _uiTimer = new System.Windows.Forms.Timer { Interval = Math.Max(1, 1000 / TARGET_FPS) };
-            _uiTimer.Tick += (s2, ev2) =>
-            {
-                // nếu bạn dùng cơ chế _latestBmp thì cập nhật ở đây;
-                // hiện tại đã set trực tiếp Image ngay trong capture loop để đơn giản.
-            };
+            _uiTimer.Tick += (s2, ev2) => { /* nếu bạn dùng _latestBmp thì cập nhật ở đây */ };
             _uiTimer.Start();
+        }
+
+
+        // ===================== Helper: Zoom số (center-crop + resize) =====================
+        private static Bitmap ApplyCenterZoom(Bitmap src, float zoomFactor)
+        {
+            // zoomFactor >= 1.0f (1.2f = phóng to nhẹ)
+            if (zoomFactor <= 1.001f) return (Bitmap)src.Clone();
+
+            int w = src.Width;
+            int h = src.Height;
+
+            // kích thước vùng crop ở giữa
+            int cw = (int)Math.Round(w / zoomFactor);
+            int ch = (int)Math.Round(h / zoomFactor);
+            if (cw < 2) cw = 2;
+            if (ch < 2) ch = 2;
+
+            int cx = (w - cw) / 2;
+            int cy = (h - ch) / 2;
+            var cropRect = new Rectangle(cx, cy, cw, ch);
+
+            // cắt và phóng to về lại kích thước gốc
+            var cropped = src.Clone(cropRect, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            var dst = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(dst))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(cropped, new Rectangle(0, 0, w, h));
+            }
+            cropped.Dispose();
+            return dst;
         }
 
 
@@ -600,16 +637,11 @@ namespace Project_CK
         }
         private void UpdateTracksAndSendPlcOnExit(List<YoloOnnxSafe.Det> dets)
         {
-            // ===== Cấu hình băng tải =====//ban dau 20
-            const double BELT_SPEED_MM_PER_S = 65.0;   // tốc độ băng tải (mm/s)
-            const int BELT_DIR_Y = +1;     // +1 nếu chạy theo +Y, -1 nếu ngược lại
-            const double OUT_LIFETIME_S = 9.0;   // xóa track sau khi vật ở ngoài ROI >12s
-            double Z0_MM = -310;  // Z cố định (mm)
+            const double Z0_MM = -300;
 
             var matched = new HashSet<int>();
-            var nowUtc = DateTime.UtcNow;
 
-            // --- 1) Match detection -> track ---
+            // --- 1) Gán detection -> track ---
             foreach (var d in dets)
             {
                 var c = new PointF(d.Rect.X + d.Rect.Width / 2f, d.Rect.Y + d.Rect.Height / 2f);
@@ -625,18 +657,14 @@ namespace Project_CK
                     if (dist < bestDist) { bestDist = dist; bestId = kv.Key; }
                 }
 
-                if (bestId >= 0 && bestDist <= MATCH_MAX_DIST_PX)
+                if (bestDist <= MATCH_MAX_DIST_PX && bestId >= 0)
                 {
                     var t = _tracks[bestId];
                     t.Rect = d.Rect;
                     t.Center = c;
                     t.Label = d.Label;
                     t.Missed = 0;
-                    t.Missed2AtUtc = null;
-
-                    if (_roiEnabled && _roiDisp.Contains((int)c.X, (int)c.Y))
-                        t.LastInRoiCenter = c;
-
+                    if (InRoi(c)) t.LastInRoiCenter = c;
                     _tracks[bestId] = t;
                     matched.Add(bestId);
                 }
@@ -661,122 +689,94 @@ namespace Project_CK
                 }
             }
 
-            // --- 2) Xử lý vật không match (rời ROI) ---
-            var toRemove = new List<int>();
-
-            foreach (var kv in _tracks)
+            // --- 2) Tăng Missed cho track không match; enqueue những track đang NẰM TRONG ROI ---
+            foreach (var kv in _tracks.ToList())
             {
                 int id = kv.Key;
                 var t = kv.Value;
 
-                if (matched.Contains(id))
-                    continue;
+                if (!matched.Contains(id))
+                    t.Missed = Math.Min(t.Missed + 1, 1_000_000);
 
-                t.Missed++;
-
-                // Khi vật vừa rời ROI (Missed == 2)
-                if (t.Missed == 2 && t.Missed2AtUtc == null)
+                if (t.Missed == 0 && InRoi(t.Center))
                 {
-                    t.Missed2AtUtc = nowUtc;
-
-                    // 640x640 → 1920x1080 → mm
-                    PointF p1920_exit = MapBackPoint_ResizedToOrig(t.LastInRoiCenter, _lastResizeMeta);
-                    var (X0_mm, Y0_mm) = Pixel1920ToMm_OnPlane(p1920_exit.X, p1920_exit.Y);
-                    t.X0_mm = X0_mm;
-                    t.Y0_mm = Y0_mm;
-
-                    // X cố định sau offset
-                    double Xw_off = -(X0_mm - 110);
-                    double Yw_off = -(Y0_mm - 250);
-                    t.XRobotFixed = Xw_off;
-                }
-
-                // Nếu đã có mốc rời ROI → gửi liên tục
-                if (t.Missed2AtUtc.HasValue)
-                {
-                    double dt_s = (nowUtc - t.Missed2AtUtc.Value).TotalSeconds;
-                    if (dt_s < 0) dt_s = 0;
-
-                    // Y di chuyển theo vận tốc băng tải
-                    double Yw_mm = t.Y0_mm + BELT_DIR_Y * BELT_SPEED_MM_PER_S * dt_s;
-                    double Xw_mm = t.X0_mm; // X cố định
-
-                    // Offset
-                    double Xw_off = -(Xw_mm - 110);
-                    // double Yw_off = -(Yw_mm - 250);
-                    double Yw_off = -(Yw_mm - 280-30);
-
-                    // 🔧 Bù X và Y nếu cần
-
-                    if (Xw_off < -50)
+                    if (!_queuedIds.Contains(id))
                     {
-                        Xw_off += -25;
-                        Yw_off -= -50;
-                        Z0_MM = -300;
+                        _sendQueue.Enqueue(id);
+                        _queuedIds.Add(id);
                     }
-                    if (Xw_off >= -50&& Xw_off <= -45)
-                    {
-                        Xw_off += -15;
-                        Yw_off -= -40;
-                        Z0_MM = -303;
-                    }
-                    if (Xw_off > -45 && Xw_off <= -43)
-                    {
-                        Xw_off += -10;
-                        Yw_off -= -45;
-                        Z0_MM = -303;
-                    }
-                    if (Xw_off > -43 && Xw_off <= -40)
-                    {
-                        Xw_off += -5;
-                        Yw_off -= -30;
-                        Z0_MM = -305;
-                    }
-                    if (Xw_off <= -37 && Xw_off > -40)
-                    {
-                        Xw_off += 0;
-                        Yw_off -= -10;
-                        Z0_MM = -306;
-                    }
-                    if (Xw_off <= -35 && Xw_off > -37)
-                    {
-                        Xw_off += 0;
-                        Yw_off -= -10;
-                        Z0_MM = -306;
-                    }
-                    if (Xw_off > -35)
-                    {
-                        Xw_off += 10;
-                        Yw_off -= -10;
-                        Z0_MM = -308;
-                    }
-                    /*if (Xw_off > -40)
-                    {
-                        Xw_off += -10;
-                        Yw_off -= -30;
-                        Z0_MM = -305;
-                    }*/
-
-                    // Gửi xuống PLC (X, Y, Z, Type)
-                    short type = (short)t.ClassId;
-                    int x_mm_dint = (int)Math.Round(Xw_off);
-                    int y_mm_dint = (int)Math.Round(Yw_off);
-                    int z_mm_dint = (int)Math.Round(Z0_MM); // Z cố định
-
-                    _plcQueue.Enqueue((x_mm_dint, y_mm_dint, z_mm_dint, type));
-
-                    // Xóa track sau OUT_LIFETIME_S
-                    if (dt_s > OUT_LIFETIME_S)
-                        toRemove.Add(id);
+                    t.LastInRoiCenter = t.Center;
                 }
 
                 _tracks[id] = t;
             }
 
-            foreach (var id in toRemove)
-                _tracks.Remove(id);
+            // --- 3) Duy trì "vật đang phục vụ" cho đến khi rời ROI hoặc mất hẳn ---
+            if (_activeTrackId.HasValue)
+            {
+                if (!_tracks.TryGetValue(_activeTrackId.Value, out var cur)
+                    || cur.Missed >= MISS_LOST_FRAMES
+                    || !InRoi(cur.Center))
+                {
+                    if (_activeTrackId.HasValue) _queuedIds.Remove(_activeTrackId.Value);
+                    _activeTrackId = null;
+                }
+            }
 
-            // --- 3) Gửi các item đến hạn (nếu có) ---
+            // Nếu chưa có vật đang phục vụ → lấy từ FIFO
+            while (_activeTrackId == null && _sendQueue.Count > 0)
+            {
+                int nextId = _sendQueue.Dequeue();
+                if (_tracks.TryGetValue(nextId, out var t) && t.Missed < MISS_LOST_FRAMES && InRoi(t.Center))
+                {
+                    _activeTrackId = nextId;
+                    break;
+                }
+                else
+                {
+                    _queuedIds.Remove(nextId);
+                }
+            }
+
+            // --- 4) GỬI PLC: chỉ gửi CHO VẬT ĐANG PHỤC VỤ & CÒN NẰM TRONG ROI ---
+            if (_activeTrackId.HasValue && _tracks.TryGetValue(_activeTrackId.Value, out var act))
+            {
+                if (act.Missed == 0 && InRoi(act.Center))
+                {
+                    // 640 -> 1920 -> (X,Y)mm qua Homography
+                    double x_rotate, y_rotate, z_rotate;
+                    PointF p1920 = MapBackPoint_ResizedToOrig(act.Center, _lastResizeMeta);
+                    var (X_mm, Y_mm) = Pixel1920ToMm_UsingK(p1920.X, p1920.Y);
+                    // Offset theo hệ của bạn
+                    double Xw_off = (X_mm+270 );
+                    double Yw_off = (Y_mm +200);
+                    short type = (short)act.ClassId;
+                    int x_mm_dint = (int)Math.Round(Xw_off);
+                    int y_mm_dint = (int)Math.Round(Yw_off);
+                    int z_mm_dint = (int)Math.Round(Z0_MM);
+                   
+                    _plcQueue.Enqueue((x_mm_dint, y_mm_dint, z_mm_dint, type));
+                }
+                else
+                {
+                    // sẽ được nhả ở bước 3 khi rời ROI/mất detect
+                }
+            }
+
+            // --- 5) Dọn rác track quá cũ ---
+            var toRemove = new List<int>();
+            foreach (var kv in _tracks)
+            {
+                if (kv.Value.Missed > 2000)
+                {
+                    toRemove.Add(kv.Key);
+                    _queuedIds.Remove(kv.Key);
+                    if (_activeTrackId == kv.Key) _activeTrackId = null;
+                }
+            }
+            foreach (var id in toRemove) _tracks.Remove(id);
+
+            // nếu bạn có cơ chế trễ gửi theo thời điểm, giữ lại:
             SendDuePlcIfAny();
         }
 
@@ -787,18 +787,10 @@ namespace Project_CK
 
 
 
-        // helper: đặt trong Form2 (nếu chưa có)
 
-        // Drop-in thay cho hàm cũ
-        private static string SafeLabel(int id, string[] names)
-        {
-            return (id >= 0 && id < (names?.Length ?? 0)) ? names[id] : $"cls{id}";
-        }
 
         private void DrawTracks(Bitmap drawBmp)
         {
-            if (drawBmp == null || _tracks == null) return;
-
             using var g = Graphics.FromImage(drawBmp);
             using var pen = new Pen(Color.Lime, 2);
             using var labelFont = new Font("Segoe UI", 9f, FontStyle.Bold);
@@ -806,62 +798,30 @@ namespace Project_CK
 
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            float W = drawBmp.Width;
-            float H = drawBmp.Height;
-
-            // Duyệt trực tiếp, không Where(... tt != null ...)
-            foreach (var t in _tracks.Values)
+            foreach (var t in _tracks.Values.Where(tt => tt.Missed == 0))
             {
-                // Nếu bạn dùng struct Track, t không thể null; lọc Missed tại đây
-                if (t.Missed != 0) continue;
+                g.DrawRectangle(pen, t.Rect.X, t.Rect.Y, t.Rect.Width, t.Rect.Height);
 
-                // Bảo vệ NaN/Infinity
-                float rx = float.IsFinite(t.Rect.X) ? t.Rect.X : 0f;
-                float ry = float.IsFinite(t.Rect.Y) ? t.Rect.Y : 0f;
-                float rw = float.IsFinite(t.Rect.Width) ? t.Rect.Width : 0f;
-                float rh = float.IsFinite(t.Rect.Height) ? t.Rect.Height : 0f;
-                if (rw < 0) rw = 0;
-                if (rh < 0) rh = 0;
-
-                g.DrawRectangle(pen, rx, ry, rw, rh);
-
-                // Tâm
-                float cx = float.IsFinite(t.Center.X) ? t.Center.X : (rx + rw / 2f);
-                float cy = float.IsFinite(t.Center.Y) ? t.Center.Y : (ry + rh / 2f);
                 using (var dot = new SolidBrush(Color.Red))
-                {
-                    float dx = float.IsFinite(cx) ? cx - 3f : 0f;
-                    float dy = float.IsFinite(cy) ? cy - 3f : 0f;
-                    g.FillEllipse(dot, dx, dy, 6f, 6f);
-                }
+                    g.FillEllipse(dot, t.Center.X - 3f, t.Center.Y - 3f, 6f, 6f);
 
-                // Nhãn: ưu tiên t.Label; fallback theo ClassId an toàn
-                string labelText = !string.IsNullOrWhiteSpace(t.Label)
-                    ? t.Label
-                    : SafeLabel(t.ClassId, _labels);
-
-                float lx = rx;
-                float ly = Math.Max(0, ry - labelFont.Height);
+                string labelText = t.Label;
+                float lx = t.Rect.X;
+                float ly = Math.Max(0, t.Rect.Y - labelFont.Height);
                 g.DrawString(labelText, labelFont, Brushes.Black, lx + 1, ly + 1);
                 g.DrawString(labelText, labelFont, Brushes.Yellow, lx, ly);
 
-                // Tọa độ
-                string coordText = $"({(int)Math.Round(cx)},{(int)Math.Round(cy)})";
+                string coordText = $"({(int)t.Center.X},{(int)t.Center.Y})";
+                float tx = t.Center.X + 8f, ty = t.Center.Y - 8f;
                 var s = g.MeasureString(coordText, coordFont);
-                float tx = cx + 8f, ty = cy - 8f;
-
-                if (!float.IsFinite(tx)) tx = 0;
-                if (!float.IsFinite(ty)) ty = 0;
-
-                if (tx + s.Width > W - 2) tx = cx - 8f - s.Width;
-                if (ty < 0) ty = cy + 8f;
+                float W = drawBmp.Width, H = drawBmp.Height;
+                if (tx + s.Width > W - 2) tx = t.Center.X - 8f - s.Width;
+                if (ty < 0) ty = t.Center.Y + 8f;
                 if (ty + s.Height > H - 2) ty = H - s.Height - 2;
-
                 g.DrawString(coordText, coordFont, Brushes.Black, tx + 1, ty + 1);
                 g.DrawString(coordText, coordFont, Brushes.Red, tx, ty);
             }
         }
-
 
 
         private void StopEverything()
@@ -917,36 +877,22 @@ namespace Project_CK
             float v = (float)((p.Y - m.PadY) / m.Scale);
             return new PointF(u, v);
         }
-        private (double Xw_mm, double Yw_mm) Pixel1920ToMm_OnPlane(double u1920, double v1920)
+
+        // ======= Hàm chuyển đổi pixel → mm chỉ dùng K =======
+        private (double Xw_mm, double Yw_mm) Pixel1920ToMm_UsingK(double u1920, double v1920)
         {
-            // 1) undistortPoints -> lấy tia chuẩn hoá (x_n, y_n) trong hệ camera
-            using var K = new Mat(3, 3, DepthType.Cv64F, 1);
-            K.SetTo(DoubleMatrixToArray(_K_1920));
+            double fx = _K_1920[0, 0];
+            double fy = _K_1920[1, 1];
+            double cx = _K_1920[0, 2];
+            double cy = _K_1920[1, 2];
 
-            using var dist = new Mat(_dist_1920.Length, 1, DepthType.Cv64F, 1);
-            dist.SetTo(_dist_1920);
+            // toạ độ chuẩn hoá trong hệ camera
+            double xn = (u1920 - cx) / fx;
+            double yn = (v1920 - cy) / fy;
 
-            // Dùng VectorOfPointF để tránh lỗi nhiều kênh
-            using var srcPts = new VectorOfPointF(new[] { new System.Drawing.PointF((float)u1920, (float)v1920) });
-            using var dstPts = new VectorOfPointF();
-            CvInvoke.UndistortPoints(srcPts, dstPts, K, dist, null, null);
-
-            var pNorm = dstPts[0];        // (x_n, y_n)
-            double xn = pNorm.X;
-            double yn = pNorm.Y;
-
-            // d_c = [x_n, y_n, 1]^T
-            double[] dc = new double[] { xn, yn, 1.0 };
-
-            // 2) Chuyển tia & tâm camera sang hệ world
-            var RT = Transpose3x3(_Rcw);              // R^T
-            var Cw = Negate(MulMatVec(RT, _tcw));     // Cw = -R^T * t  (với cấu hình top-down: (0,0,310))
-            var dw = MulMatVec(RT, dc);               // d_w = R^T * d_c
-
-            // 3) Giao tuyến với mặt phẳng Z = Z0_MM (ví dụ Z0=0)
-            double lambda = (Z0_MM - Cw[2]) / dw[2];
-            double Xw = Cw[0] + lambda * dw[0];
-            double Yw = Cw[1] + lambda * dw[1];
+            // nhân chiều cao * hệ số hiệu chỉnh
+            double Xw = xn * CAMERA_HEIGHT_MM * SCALE_CORR;
+            double Yw = yn * CAMERA_HEIGHT_MM * SCALE_CORR;
 
             return (Xw, Yw);
         }
@@ -1167,7 +1113,7 @@ namespace Project_CK
                 int padX = (dstW - nw) / 2;
                 int padY = (dstH - nh) / 2;
 
-                var canvas = new Bitmap(dstW, dstH, PixelFormat.Format24bppRgb);
+                var canvas = new Bitmap(dstW, dstH, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
                 using var g = Graphics.FromImage(canvas);
                 g.Clear(Color.Black);
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
@@ -1178,7 +1124,8 @@ namespace Project_CK
             private static byte[] BitmapToBytes24(Bitmap bmp)
             {
                 var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
-                var bd = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                var bd = bmp.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly,
+                                      System.Drawing.Imaging.PixelFormat.Format24bppRgb);
                 int bytes = Math.Abs(bd.Stride) * bd.Height;
                 byte[] buffer = new byte[bytes];
                 Marshal.Copy(bd.Scan0, buffer, 0, bytes);
@@ -1189,61 +1136,28 @@ namespace Project_CK
             private List<Det> ParseDetectionsYolov8(Tensor<float> t, float scale, int padX, int padY, int origW, int origH)
             {
                 var list = new List<Det>();
+                if (t.Dimensions.Length != 3) return list;
 
-                // Chuẩn hóa shape: hỗ trợ [1,1,C,N], [1,1,N,C], [1,C,N], [1,N,C], [N,C]
-                int[] rawDims = t.Dimensions.ToArray();
-                int[] dims = rawDims;
+                int d1 = t.Dimensions[1];
+                int d2 = t.Dimensions[2];
 
-                if (dims.Length == 4 && dims[0] == 1 && dims[1] == 1)
-                {
-                    // [1,1,C,N] hoặc [1,1,N,C] -> [1,C,N] hoặc [1,N,C] (giữ batch=1)
-                    dims = new[] { 1, dims[2], dims[3] };
-                }
-                else if (dims.Length == 2)
-                {
-                    // [N,C] -> [1,N,C]
-                    dims = new[] { 1, dims[0], dims[1] };
-                }
-
-                var dimsStr = dims.Select(d => d.ToString()).ToArray();
-                System.Diagnostics.Debug.WriteLine("Output dims (norm): " + string.Join("x", dimsStr));
-
-                if (dims.Length != 3)
-                {
-                    System.Diagnostics.Debug.WriteLine("Unsupported output dims (still): " + string.Join("x", dimsStr));
-                    return list;
-                }
-
-                int d1 = dims[1]; // có thể là C hoặc N
-                int d2 = dims[2]; // phần còn lại
-
-                // Suy luận C (4+numClasses) và N
-                bool assumeCxN = (d1 <= d2); // phần lớn trường hợp C < N
-                int C = assumeCxN ? d1 : d2;
-                int N = assumeCxN ? d2 : d1;
-
-                if (C < 5 || N <= 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Bad (C,N)=({C},{N})");
-                    return list;
-                }
+                // YOLOv8: output thường là [1, C, N] (CxN) hoặc [1, N, C] (NxC), không objectness
+                bool isCxN = d1 <= d2;      // C nhỏ hơn N
+                int C = isCxN ? d1 : d2;    // 4 + numClasses
+                int N = isCxN ? d2 : d1;
 
                 int clsStart = 4;
                 int numClasses = C - clsStart;
-                if (numClasses <= 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"numClasses invalid: {numClasses}");
-                    return list;
-                }
+                if (numClasses <= 0) return list;
 
-                // Thăm dò để biết có cần sigmoid không (nhiều model xuất logits)
+                // Kiểm tra cần sigmoid hay không (nếu là logits)
                 int probe = Math.Min(N, 200);
                 float pMax = float.NegativeInfinity, pMin = float.PositiveInfinity;
                 for (int i = 0; i < probe; i++)
                 {
                     for (int c = clsStart; c < C; c++)
                     {
-                        float v = assumeCxN ? t[0, c, i] : t[0, i, c];
+                        float v = isCxN ? t[0, c, i] : t[0, i, c];
                         if (v > pMax) pMax = v;
                         if (v < pMin) pMin = v;
                     }
@@ -1252,23 +1166,25 @@ namespace Project_CK
 
                 for (int i = 0; i < N; i++)
                 {
-                    float cx = assumeCxN ? t[0, 0, i] : t[0, i, 0];
-                    float cy = assumeCxN ? t[0, 1, i] : t[0, i, 1];
-                    float w = assumeCxN ? t[0, 2, i] : t[0, i, 2];
-                    float h = assumeCxN ? t[0, 3, i] : t[0, i, 3];
+                    float cx = isCxN ? t[0, 0, i] : t[0, i, 0];
+                    float cy = isCxN ? t[0, 1, i] : t[0, i, 1];
+                    float w = isCxN ? t[0, 2, i] : t[0, i, 2];
+                    float h = isCxN ? t[0, 3, i] : t[0, i, 3];
 
-                    if (w <= 1f || h <= 1f) continue; // lọc nhiễu boxes quá nhỏ
+                    if (w <= 1f || h <= 1f) continue; // giảm nhiễu
 
                     int best = -1;
                     float bestScore = 0f;
                     for (int c = clsStart; c < C; c++)
                     {
-                        float s = assumeCxN ? t[0, c, i] : t[0, i, c];
+                        float s = isCxN ? t[0, c, i] : t[0, i, c];
                         if (needSigmoid) s = 1f / (1f + MathF.Exp(-s));
                         if (s > bestScore) { bestScore = s; best = c - clsStart; }
                     }
+
                     if (best < 0 || bestScore < ScoreThresh) continue;
 
+                    // Unletterbox -> toạ độ ảnh gốc
                     var rect = UnletterBox(cx, cy, w, h, scale, padX, padY, origW, origH);
                     if (rect.Width < 1f || rect.Height < 1f) continue;
 
@@ -1322,8 +1238,6 @@ namespace Project_CK
             private static float Clamp(float v, float min, float max) => (v < min) ? min : (v > max ? max : v);
         }
 
-
-
         private void viewplc(object sender, EventArgs e)
         {
             byte[] buf = new byte[12];
@@ -1336,8 +1250,8 @@ namespace Project_CK
                 float theta3 = S7.GetRealAt(buf, 8);
 
                 double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
-                int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
-                RotateZ(X_viewplc *0.9 , Y_viewplc * 0.9 , Z_viewplc, thetaDeg: 330, out x_rotate, out y_rotate, out z_rotate);
+                int Status1 = delta_calcForward(theta1  / 10, theta2  / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+                RotateZ(X_viewplc * 0.9, Y_viewplc * 0.9, Z_viewplc, thetaDeg: 330, out x_rotate, out y_rotate, out z_rotate);
 
                 if (Status1 == 0)
                 {
@@ -1363,19 +1277,16 @@ namespace Project_CK
         ////////////////////////////////
         public void WriteBool(int db, int byteOffset, int bitOffset, bool value)
         {
-            // 1️⃣ Đọc byte hiện tại
-            byte[] buf = new byte[1];
-            int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0)
-                throw new Exception(plc.ErrorText(rc));
+            var buf = new byte[1];
 
-            // 2️⃣ Sửa đúng bit cần ghi
-            S7.SetBitAt( buf, 0, bitOffset, value);
+            int rc = plc.DBRead(db, byteOffset, 1, buf);
+            if (rc != 0) throw new Exception(plc.ErrorText(rc));
 
-            // 3️⃣ Ghi lại nguyên byte sau khi chỉnh
-            rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
-            if (rc != 0)
-                throw new Exception(plc.ErrorText(rc));
+            // ✅ ĐÚNG: truyền mảng, byteIndex = 0 vì ta chỉ đọc 1 byte
+            S7.SetBitAt(buf, 0, bitOffset, value);
+
+            rc = plc.DBWrite(db, byteOffset, 1, buf);
+            if (rc != 0) throw new Exception(plc.ErrorText(rc));
         }
         public bool ReadBool(int db, int byteOffset, int bitOffset)
         {
@@ -1441,19 +1352,16 @@ namespace Project_CK
             yr = s * x + c * y;
             zr = z; // xoay quanh Z thì Z không đổi
         }   
-       
         private async void btn_exc_click(object sender, EventArgs e)
         {
             double x1 = (double)numericUpDown_x.Value;
             double y1 = (double)numericUpDown_y.Value;
             double z1 = (double)numericUpDown_z.Value;
-            double vTcp = (double)numericUpDown_vel.Value;
             double x_rotate, y_rotate, z_rotate;
-            RotateZ(x1/0.9, y1/0.9 , z1, thetaDeg: 30, out x_rotate, out y_rotate, out z_rotate);
+            RotateZ(x1 / 0.9, y1 / 0.9, z1, thetaDeg: 30, out x_rotate, out y_rotate, out z_rotate);
             WriteReal(44, 0, (float)x_rotate);
             WriteReal(44, 4, (float)y_rotate);
             WriteReal(44, 8, (float)z_rotate);
-            WriteReal(44, 12, (float)vTcp);
             WriteBool(47, 0, 0, false);
             WriteBool(47, 0, 0, true);
 
