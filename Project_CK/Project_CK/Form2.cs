@@ -25,7 +25,7 @@ namespace Project_CK
 {
     public partial class Form2 : Form
     {
-        public double ee = 40;     
+        public double ee = 40;
         public double ff = 60;
         public double re = 310;
         public double rf = 150;
@@ -37,24 +37,17 @@ namespace Project_CK
         const Double sin30 = 0.5;
         const Double tan30 = 0.57735;
 
-        /*
-        const int DB_CMD = 33; // DB điều khiển
-        const int DB_FB = 18; // DB phản hồi
-        private int _seq = 0;
-        private System.Windows.Forms.Timer fbTimer;
-        */
-
         // ---------- Capture state ----------
         private VideoCapture _cap;
         private CancellationTokenSource _cts;
         private Task _captureTask;
         private System.Windows.Forms.Timer _uiTimer;
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
- 
+
         private readonly string[] _labels = { "green_cake", "red_cake", "yellow_cake" };
-        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\nhap\Project_CK\Project_CK\best.onnx";
-        
-        
+        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\8-11\Project_CK\Project_CK\best.onnx";
+
+
         private volatile int _brightness = 0;   // -100..+100
 
         private WinTimer plcTimer;
@@ -77,7 +70,7 @@ namespace Project_CK
                     inputW: 640, inputH: 640
                 )
                 {
-                    ScoreThresh = 0.30f,
+                    ScoreThresh = 0.85f,
                     NmsThresh = 0.45f
                 };
             }
@@ -88,7 +81,7 @@ namespace Project_CK
             }
         }
         // shared khung hình mới nhất để UI lấy
-        
+
 
         // ---------- CAMERA CONFIG ----------
         private const int CAM_INDEX = 1;
@@ -117,9 +110,6 @@ namespace Project_CK
         private readonly Dictionary<int, Track> _tracks = new Dictionary<int, Track>();
         private int _nextTrackId = 1;
         private const float MATCH_MAX_DIST_PX = 60f;
-        // Scale pixel -> DINT (tuỳ chỉnh)
-        private const int SCALE_NUM = 1;
-        private const int SCALE_DEN = 1;
         // ---------- PLC ----------
         public S7Client plc;
         private CancellationTokenSource _plcCts;
@@ -164,7 +154,6 @@ namespace Project_CK
     { 0, 0, 1 }
 };
 
-
         // t = (0, 0, 310) để tâm camera Cw = -R^T t = (0,0,310)
         private readonly double[] _tcw = new double[] { 0, 0, CAM_HEIGHT };
         private readonly Queue<(int X, int Y, int Z, short Type)> _plcQueue = new();
@@ -173,7 +162,7 @@ namespace Project_CK
         // vị trí mm tại thời điểm Missed==2
         private readonly Dictionary<int, double> _exitMmX = new();
         private readonly Dictionary<int, double> _exitMmY = new();
-                                                          // ==== FIFO tuần tự gửi xuống PLC ====
+        // ==== FIFO tuần tự gửi xuống PLC ====
         private readonly Queue<int> _sendQueue = new();   // id track chờ phục vụ
         private readonly HashSet<int> _queuedIds = new(); // chống enqueue trùng
         private int? _activeTrackId = null;               // id đang phục vụ
@@ -209,23 +198,18 @@ namespace Project_CK
             var p1920 = MapBackPoint_ResizedToOrig(p640, _lastResizeMeta);
             return ApplyH_ImgToWorld(p1920.X, p1920.Y);
         }
+        // === Biến toàn cục ===
+        const int DB_VAT = 77;      // số DB chứa 3 biến đếm
+        const int START_BYTE = 0;   // offset bắt đầu (vd: 0 hoặc 20...)
+
+        private bool _manualMode = false;  // trạng thái manual
 
         public Form2()
         {
             InitializeComponent();
             plc = new S7Client();
-            var labels = new[] { "black", "milk", "chocolate" };
-            var yolo = new YoloOnnxSafe(
-                onnxPath: @"C:\Users\Hoang\Documents\IMAGE DATN\Project_CK\Project_CK\best .onnx",
-                classNames: labels,
-                useDirectML: false,   // bật true nếu bạn có DML GPU
-                inputW: 640, inputH: 640
-            )
-            {
-                ScoreThresh = 0.20f,
-                NmsThresh = 0.45f
-            };
-            
+
+
 
             // cấu hình combobox PLC
             combox_plc.Items.Add("192.168.0.1");   // ví dụ IP S7-1200
@@ -241,10 +225,8 @@ namespace Project_CK
             numericUpDown_y.Minimum = -120;   // giới hạn nhỏ nhất
             numericUpDown_y.Maximum = 120;
             numericUpDown_y.Increment = 0.1M;
-            numericUpDown_vel.Minimum = 0;
-            numericUpDown_vel.Maximum = 3000;
             numericUpDown_y.Increment = 1;
-            _roiDisp = new Rectangle(80, 140, 240, 340);
+            _roiDisp = new Rectangle(80, 90, 240, 460);///_roiDisp = new Rectangle(80, 140, 240, 340);
             /*
             System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
             fbTimer = new System.Windows.Forms.Timer();
@@ -253,9 +235,9 @@ namespace Project_CK
             fbTimer.Start();
             */
             plcTimer = new WinTimer();
-            plcTimer.Interval = 500;
-            plcTimer.Tick += viewplc;
-
+            plcTimer.Interval = 100;
+            plcTimer.Tick += viewvat;   // đếm vật vẫn chạy liên tục
+            plcTimer.Start();
 
         }
         ////////////////////////////////
@@ -380,7 +362,7 @@ namespace Project_CK
                     this.Invoke((MethodInvoker)(() =>
                     {
                         UpdateStatus(false);
-                        MessageBox.Show("Kết nối thất bại. Mã lỗi: " + result);
+
                     }));
                 }
             });
@@ -512,7 +494,7 @@ namespace Project_CK
 
                                     // lọc kích thước/aspect trên 640×640
                                     const int MIN_W_PX = 120, MIN_H_PX = 120, MIN_AREA_PX = 120 * 120;
-                                    const float MIN_ASPECT = 0.5f, MAX_ASPECT = 1.3f;
+                                    const float MIN_ASPECT = 0.2f, MAX_ASPECT = 5.0f;
                                     dets = dets.Where(d =>
                                     {
                                         float w = d.Rect.Width, h = d.Rect.Height;
@@ -748,13 +730,16 @@ namespace Project_CK
                     PointF p1920 = MapBackPoint_ResizedToOrig(act.Center, _lastResizeMeta);
                     var (X_mm, Y_mm) = Pixel1920ToMm_UsingK(p1920.X, p1920.Y);
                     // Offset theo hệ của bạn
-                    double Xw_off = (X_mm+270 );
-                    double Yw_off = (Y_mm +200);
+                    double Xw_off = (X_mm + 260);
+                    double Yw_off = -(Y_mm + 200);
+
+                    if(Yw_off<-80)
+                    { Xw_off = Xw_off + 3; }    
                     short type = (short)act.ClassId;
                     int x_mm_dint = (int)Math.Round(Xw_off);
                     int y_mm_dint = (int)Math.Round(Yw_off);
                     int z_mm_dint = (int)Math.Round(Z0_MM);
-                   
+
                     _plcQueue.Enqueue((x_mm_dint, y_mm_dint, z_mm_dint, type));
                 }
                 else
@@ -970,9 +955,11 @@ namespace Project_CK
         {
             StopCamera();
             base.OnFormClosing(e);
+            _cts?.Cancel();
+            plc.Disconnect();
         }
         ////////////////////////////////
-      
+
         ////////////////////////////////
         private void btn_FWD_click(object sender, EventArgs e)
         {
@@ -996,7 +983,9 @@ namespace Project_CK
             Double X_view = 0;
             Double Y_view = 0;
             Double Z_view = 0;
+
             int Status1 = delta_calcForward(Theta1_tb, Theta2_tb, Theta3_tb, ref X_view, ref Y_view, ref Z_view);
+
             if (Status1 == 0)
             {
                 textBox_view_x.Text = FormatValue(X_view);
@@ -1250,8 +1239,8 @@ namespace Project_CK
                 float theta3 = S7.GetRealAt(buf, 8);
 
                 double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
-                int Status1 = delta_calcForward(theta1  / 10, theta2  / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
-                RotateZ(X_viewplc * 0.9, Y_viewplc * 0.9, Z_viewplc, thetaDeg: 330, out x_rotate, out y_rotate, out z_rotate);
+                int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+                RotateZ(X_viewplc*0.9 , Y_viewplc*0.9 , Z_viewplc, thetaDeg: 0, out x_rotate, out y_rotate, out z_rotate);
 
                 if (Status1 == 0)
                 {
@@ -1274,25 +1263,103 @@ namespace Project_CK
                 textBox_viewplc_z.Text = "---";
             }
         }
+
+        // ===== Tick hợp nhất: GHI (nếu có) -> viewplc -> đọc vat & update UI =====
+        private void viewvat(object sender, EventArgs e)
+        {
+            byte[] buf = new byte[12]; // 3 giá trị × 4 byte (REAL hoặc DINT)
+            int result = plc.DBRead(DB_VAT, START_BYTE, buf.Length, buf);
+
+            if (result == 0)
+            {
+                // ---- Nếu PLC lưu kiểu REAL (mặc định mình dùng REAL) ----
+                float vat1 = S7.GetRealAt(buf, 0);
+                float vat2 = S7.GetRealAt(buf, 4);
+                float vat3 = S7.GetRealAt(buf, 8);
+
+                // ---- Nếu PLC lưu kiểu DINT, dùng 3 dòng dưới THIS thay cho 3 dòng trên ----
+                // int vat1 = S7.GetDIntAt(buf, 0);
+                // int vat2 = S7.GetDIntAt(buf, 4);
+                // int vat3 = S7.GetDIntAt(buf, 8);
+                int v1 = Convert.ToInt32(vat1);
+                int v2 = Convert.ToInt32(vat2);
+                int v3 = Convert.ToInt32(vat3);
+
+                textBox_vat_1.Text = Convert.ToString(v1);
+                textBox_vat_2.Text = Convert.ToString(v2);
+                textBox_vat_3.Text = Convert.ToString(v3);
+            }
+            else
+            {
+                // Trường hợp mất kết nối / đọc lỗi
+                textBox_vat_1.Text = "---";
+                textBox_vat_2.Text = "---";
+                textBox_vat_3.Text = "---";
+            }
+        }
+
+
+
+
+
+        private void viewVatThe(object sender, EventArgs e)
+        {
+            try
+            {
+                // Giả sử PLC lưu 3 giá trị DINT (4 byte mỗi cái)
+                // tại DB số 112, từ byte 0 → 11 (3 * 4 = 12 bytes)
+                byte[] buf = new byte[12];
+                int result = plc.DBRead(77, 0, buf.Length, buf);
+
+                if (result == 0)
+                {
+                    // Đọc lần lượt 3 giá trị DINT
+                    int vat1 = S7.GetDIntAt(buf, 0);
+                    int vat2 = S7.GetDIntAt(buf, 4);
+                    int vat3 = S7.GetDIntAt(buf, 8);
+
+                    // Cập nhật lên giao diện
+                    textBox_vat_1.Text = vat1.ToString();
+                    textBox_vat_2.Text = vat2.ToString();
+                    textBox_vat_3.Text = vat3.ToString();
+                }
+                else
+                {
+                    // Trường hợp đọc lỗi
+                    textBox_vat_1.Text = "---";
+                    textBox_vat_2.Text = "---";
+                    textBox_vat_3.Text = "---";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Khi mất kết nối hoặc exception
+                textBox_vat_1.Text = "Ø";
+                textBox_vat_2.Text = "Ø";
+                textBox_vat_3.Text = "Ø";
+                Console.WriteLine("Lỗi đọc PLC: " + ex.Message);
+            }
+        }
+
         ////////////////////////////////
         public void WriteBool(int db, int byteOffset, int bitOffset, bool value)
         {
             var buf = new byte[1];
 
             int rc = plc.DBRead(db, byteOffset, 1, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
 
             // ✅ ĐÚNG: truyền mảng, byteIndex = 0 vì ta chỉ đọc 1 byte
             S7.SetBitAt(buf, 0, bitOffset, value);
 
             rc = plc.DBWrite(db, byteOffset, 1, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
         }
         public bool ReadBool(int db, int byteOffset, int bitOffset)
         {
             byte[] buf = new byte[1];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
 
             return S7.GetBitAt(buf, 0, bitOffset);
         }
@@ -1301,13 +1368,13 @@ namespace Project_CK
             byte[] buf = new byte[4];
             S7.SetRealAt(buf, 0, value);
             int rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
         }
         public float ReadReal(int db, int byteOffset)
         {
             byte[] buf = new byte[4];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
 
             return S7.GetRealAt(buf, 0);
         }
@@ -1316,13 +1383,13 @@ namespace Project_CK
             byte[] buf = new byte[4];
             S7.SetDIntAt(buf, 0, value);
             int rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
         }
         public int ReadDInt(int db, int byteOffset)
         {
             byte[] buf = new byte[4];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception(plc.ErrorText(rc));
+            if (rc != 0) throw new Exception();
             return S7.GetDIntAt(buf, 0);
         }
         ////////////////////////////////
@@ -1351,17 +1418,23 @@ namespace Project_CK
             xr = c * x - s * y;
             yr = s * x + c * y;
             zr = z; // xoay quanh Z thì Z không đổi
-        }   
+        }
         private async void btn_exc_click(object sender, EventArgs e)
         {
             double x1 = (double)numericUpDown_x.Value;
             double y1 = (double)numericUpDown_y.Value;
             double z1 = (double)numericUpDown_z.Value;
             double x_rotate, y_rotate, z_rotate;
-            RotateZ(x1 / 0.9, y1 / 0.9, z1, thetaDeg: 30, out x_rotate, out y_rotate, out z_rotate);
+            RotateZ(x1 / 0.9, y1 / 0.9, z1, thetaDeg: 150, out x_rotate, out y_rotate, out z_rotate);
             WriteReal(44, 0, (float)x_rotate);
             WriteReal(44, 4, (float)y_rotate);
             WriteReal(44, 8, (float)z_rotate);
+            //WriteReal(44, 0, (float)(x1));
+            //WriteReal(44, 4, (float)(y1));
+            //WriteReal(44, 8, (float)z1);
+
+
+
             WriteBool(47, 0, 0, false);
             WriteBool(47, 0, 0, true);
 
@@ -1374,11 +1447,93 @@ namespace Project_CK
                 MessageBox.Show("PLC chưa kết nối.");
                 return;
             }
+            WriteBool(48, 0, 0, false);//rest
+            WriteBool(48, 0, 0, true);
+            WriteBool(33, 0, 0, false);
+            WriteBool(33, 0, 0, true);
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btn_auto_click(object sender, EventArgs e)
+        {
+            WriteBool(46, 0, 0, false);
+            WriteBool(46, 0, 0, true);
+        }
+
+        private void Form2_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btn_home_1(object sender, EventArgs e)
+        {
+            if (!plc.Connected)
+            {
+                MessageBox.Show("PLC chưa kết nối.");
+                return;
+            }
             WriteBool(48, 0, 0, false);
             WriteBool(48, 0, 0, true);
             WriteBool(33, 0, 0, false);
             WriteBool(33, 0, 0, true);
         }
 
+        private void btn_start_click(object sender, EventArgs e)
+        {
+            if (!plc.Connected)
+            {
+                MessageBox.Show("PLC chưa kết nối.");
+                return;
+            }
+            WriteBool(45, 0, 1, true);
+            WriteBool(48, 0, 0, false);//rest
+            WriteBool(48, 0, 0, true);
+            WriteBool(33, 0, 0, false);
+            WriteBool(33, 0, 0, true);
+            WriteBool(78, 0, 0, false);
+            WriteBool(78, 0, 0, true);
+            Thread.Sleep(10000);
+            WriteBool(46, 0, 0, false);
+            WriteBool(46, 0, 0, true);
+
+        }
+
+
+        private void btn_manual_click(object sender, EventArgs e)
+        {
+            if (!plc.Connected)
+            {
+                MessageBox.Show("PLC chưa kết nối.");
+                return;
+            }
+            WriteBool(81, 0, 0, false);
+            WriteBool(81, 0, 0, true);
+            _manualMode = !_manualMode; // đổi trạng thái
+
+            // bật hoặc tắt viewplc theo trạng thái
+            if (_manualMode)
+                plcTimer.Tick += viewplc;
+            else
+                plcTimer.Tick -= viewplc;
+        }
+
+        private void btn_emergency(object sender, EventArgs e)
+        {
+            if (!plc.Connected)
+            {
+                MessageBox.Show("PLC chưa kết nối.");
+                return;
+            }
+            WriteBool(45, 0, 1, false);
+        }
     }
 }

@@ -1,13 +1,13 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\",
+  "WorkspaceRootPath": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|c:\\users\\hoang\\documents\\1_11\\project_ck\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|c:\\users\\hoang\\documents\\8-11\\project_ck\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|solutionrelative:project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "AbsoluteMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{5EFDC58E-7A6B-4D73-AAC4-92EF4DDCE3F0}|Project_CK\\Project_CK.csproj|solutionrelative:project_ck\\form2.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     }
   ],
@@ -18,30 +18,17 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Form2.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Form2.cs",
-              "RelativeDocumentMoniker": "Project_CK\\Form2.cs",
-              "ToolTip": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Form2.cs [Design]",
-              "RelativeToolTip": "Project_CK\\Form2.cs [Design]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-29T08:23:54.453Z",
-              "IsPinned": true,
-              "EditorCaption": " [Design]"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
               "Title": "Form2.cs",
-              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Form2.cs",
+              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\Form2.cs",
               "RelativeDocumentMoniker": "Project_CK\\Form2.cs",
-              "ToolTip": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Form2.cs",
+              "ToolTip": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\Form2.cs",
               "RelativeToolTip": "Project_CK\\Form2.cs",
-              "ViewState": "AgIAAOACAAAAAAAAAAAAAAADAAANAAAAAAAAAA==",
+              "ViewState": "AgIAADkFAAAAAAAAAAAswFQFAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-09-29T06:36:00.124Z",
               "IsPinned": true,
@@ -50,6 +37,17 @@
             {
               "$type": "Bookmark",
               "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Form2.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\Form2.cs",
+              "RelativeDocumentMoniker": "Project_CK\\Form2.cs",
+              "ToolTip": "C:\\Users\\Hoang\\Documents\\6_11\\Project_CK\\Project_CK\\Form2.cs [Design]",
+              "RelativeToolTip": "..\\..\\6_11\\Project_CK\\Project_CK\\Form2.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-04T14:42:22.648Z"
             }
           ]
         }

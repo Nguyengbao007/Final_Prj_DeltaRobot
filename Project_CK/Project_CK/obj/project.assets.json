@@ -341,29 +341,6 @@
           }
         }
       },
-      "OpenCVSharp/2.4.0.1": {
-        "type": "package",
-        "compile": {
-          "lib/OpenCvSharp.Blob.dll": {},
-          "lib/OpenCvSharp.CPlusPlus.dll": {},
-          "lib/OpenCvSharp.DebuggerVisualizers.dll": {},
-          "lib/OpenCvSharp.Extensions.dll": {},
-          "lib/OpenCvSharp.Gpu.dll": {},
-          "lib/OpenCvSharp.MachineLearning.dll": {},
-          "lib/OpenCvSharp.UserInterface.dll": {},
-          "lib/OpenCvSharp.dll": {}
-        },
-        "runtime": {
-          "lib/OpenCvSharp.Blob.dll": {},
-          "lib/OpenCvSharp.CPlusPlus.dll": {},
-          "lib/OpenCvSharp.DebuggerVisualizers.dll": {},
-          "lib/OpenCvSharp.Extensions.dll": {},
-          "lib/OpenCvSharp.Gpu.dll": {},
-          "lib/OpenCvSharp.MachineLearning.dll": {},
-          "lib/OpenCvSharp.UserInterface.dll": {},
-          "lib/OpenCvSharp.dll": {}
-        }
-      },
       "runtime.native.System/4.3.0": {
         "type": "package",
         "dependencies": {
@@ -1005,33 +982,6 @@
         "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.dll",
         "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.xml",
         "useSharedDesignerContext.txt"
-      ]
-    },
-    "OpenCVSharp/2.4.0.1": {
-      "sha512": "tGa7NCBHvUCbZRo+YbmY6bMgw/iFikXqrHSzLtg0BIRWH1hp/lbzNm3VQUq0wr6UXeHQf12hiRWEMuGGhIks4w==",
-      "type": "package",
-      "path": "opencvsharp/2.4.0.1",
-      "hasTools": true,
-      "files": [
-        ".nupkg.metadata",
-        ".signature.p7s",
-        "content/OpenCvSharp.Blob.dll.config",
-        "content/OpenCvSharp.CPlusPlus.dll.config",
-        "content/OpenCvSharp.MachineLearning.dll.config",
-        "content/OpenCvSharp.dll.config",
-        "content/OpenCvSharpExtern.dll",
-        "content/libOpenCvSharpExtern.so",
-        "lib/OpenCvSharp.Blob.dll",
-        "lib/OpenCvSharp.CPlusPlus.dll",
-        "lib/OpenCvSharp.DebuggerVisualizers.dll",
-        "lib/OpenCvSharp.Extensions.dll",
-        "lib/OpenCvSharp.Gpu.dll",
-        "lib/OpenCvSharp.MachineLearning.dll",
-        "lib/OpenCvSharp.UserInterface.dll",
-        "lib/OpenCvSharp.dll",
-        "opencvsharp.2.4.0.1.nupkg.sha512",
-        "opencvsharp.nuspec",
-        "tools/install.ps1"
       ]
     },
     "runtime.native.System/4.3.0": {
@@ -2271,7 +2221,6 @@
       "Emgu.CV.UI >= 4.12.0.5764",
       "Emgu.CV.runtime.windows >= 4.12.0.5764",
       "Microsoft.ML.OnnxRuntime >= 1.23.0",
-      "OpenCVSharp >= 2.4.0.1",
       "Sharp7 >= 1.1.84"
     ]
   },
@@ -2282,11 +2231,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "projectUniqueName": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\Project_CK.csproj",
       "projectName": "Project_CK",
-      "projectPath": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\Project_CK.csproj",
+      "projectPath": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\Project_CK.csproj",
       "packagesPath": "C:\\Users\\Hoang\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Hoang\\Documents\\1_11\\Project_CK\\Project_CK\\obj\\",
+      "outputPath": "C:\\Users\\Hoang\\Documents\\8-11\\Project_CK\\Project_CK\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -2346,10 +2295,6 @@
             "target": "Package",
             "version": "[1.23.0, )"
           },
-          "OpenCVSharp": {
-            "target": "Package",
-            "version": "[2.4.0.1, )"
-          },
           "Sharp7": {
             "target": "Package",
             "version": "[1.1.84, )"
@@ -2377,17 +2322,5 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1701",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Package 'OpenCVSharp 2.4.0.1' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net8.0-windows7.0'. This package may not be fully compatible with your project.",
-      "libraryId": "OpenCVSharp",
-      "targetGraphs": [
-        "net8.0-windows7.0"
-      ]
-    }
-  ]
+  }
 }
