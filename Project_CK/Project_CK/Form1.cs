@@ -19,5 +19,10 @@ namespace Project_CK
             f2.ShowDialog();
             this.Show();
         }
+
+        private void label10_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

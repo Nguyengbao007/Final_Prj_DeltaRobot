@@ -42,14 +42,9 @@ namespace Project_CK
         private CancellationTokenSource _cts;
         private Task _captureTask;
         private System.Windows.Forms.Timer _uiTimer;
-        private Bitmap _latestBmp; // dùng Interlocked/lock để đổi
-
+        private Bitmap _latestBmp; // dùng Interlocked/lock để đổ
         private readonly string[] _labels = { "green_cake", "red_cake", "yellow_cake" };
         private const string MODEL_PATH = @"C:\Users\Hoang\Documents\8-11\Project_CK\Project_CK\best.onnx";
-
-
-        private volatile int _brightness = 0;   // -100..+100
-
         private WinTimer plcTimer;
         private void EnsureYoloLoaded()
         {
@@ -80,8 +75,6 @@ namespace Project_CK
                 _yolo = null;
             }
         }
-        // shared khung hình mới nhất để UI lấy
-
 
         // ---------- CAMERA CONFIG ----------
         private const int CAM_INDEX = 1;
@@ -132,8 +125,6 @@ namespace Project_CK
         }
         private ResizeMeta _lastResizeMeta;
         // ===== Calib camera
-        // --- Z0 của mặt phẳng làm việc (mm) ---
-        private const double Z0_MM = 0.0;          // mặt phẳng băng tải là Z=0
         private const double CAM_HEIGHT = -300.0;   // camera cao 310mm so với mặt phẳng
 
         // ===================== CẤU HÌNH CAMERA ======================
@@ -147,13 +138,6 @@ namespace Project_CK
         // Chiều cao camera so với mặt phẳng làm việc (mm)
         private const double CAMERA_HEIGHT_MM = 310.0;
         // --- Extrinsic world->camera (Rcw, tcw) cho top-down (không nghiêng) ---
-        private readonly double[,] _Rcw = new double[,]
-{
-    { 1, 0, 0 },
-    { 0, 1, 0 },
-    { 0, 0, 1 }
-};
-
         // t = (0, 0, 310) để tâm camera Cw = -R^T t = (0,0,310)
         private readonly double[] _tcw = new double[] { 0, 0, CAM_HEIGHT };
         private readonly Queue<(int X, int Y, int Z, short Type)> _plcQueue = new();
@@ -192,25 +176,15 @@ namespace Project_CK
             return (x / w, y / w);
         }
 
-        // Tiện: tâm box trong 640×640 -> mm (dựa vào _lastResizeMeta)
-        private (double Xmm, double Ymm) Pixel640ToMm(PointF p640)
-        {
-            var p1920 = MapBackPoint_ResizedToOrig(p640, _lastResizeMeta);
-            return ApplyH_ImgToWorld(p1920.X, p1920.Y);
-        }
         // === Biến toàn cục ===
         const int DB_VAT = 77;      // số DB chứa 3 biến đếm
         const int START_BYTE = 0;   // offset bắt đầu (vd: 0 hoặc 20...)
-
         private bool _manualMode = false;  // trạng thái manual
 
         public Form2()
         {
             InitializeComponent();
             plc = new S7Client();
-
-
-
             // cấu hình combobox PLC
             combox_plc.Items.Add("192.168.0.1");   // ví dụ IP S7-1200
             combox_plc.Text = "192.168.0.1";       // giá trị mặc định
@@ -227,13 +201,6 @@ namespace Project_CK
             numericUpDown_y.Increment = 0.1M;
             numericUpDown_y.Increment = 1;
             _roiDisp = new Rectangle(80, 90, 240, 460);///_roiDisp = new Rectangle(80, 140, 240, 340);
-            /*
-            System.Windows.Forms.Timer fbTimer = new System.Windows.Forms.Timer();
-            fbTimer = new System.Windows.Forms.Timer();
-            fbTimer.Interval = 200;
-            fbTimer.Tick += (s, e) => RefreshFeedbackUi();
-            fbTimer.Start();
-            */
             plcTimer = new WinTimer();
             plcTimer.Interval = 100;
             plcTimer.Tick += viewvat;   // đếm vật vẫn chạy liên tục
@@ -564,28 +531,6 @@ namespace Project_CK
             cropped.Dispose();
             return dst;
         }
-
-
-        ////////////////////////////////
-        private static Bitmap PadToSquare640(Bitmap src)
-        {
-            const int S = 640;
-            float r = Math.Min(S / (float)src.Width, S / (float)src.Height);
-            int nw = (int)Math.Round(src.Width * r);
-            int nh = (int)Math.Round(src.Height * r);
-            int padX = (S - nw) / 2;
-            int padY = (S - nh) / 2;
-
-            var canvas = new Bitmap(S, S, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            using (var g = Graphics.FromImage(canvas))
-            {
-                g.Clear(Color.Black);
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
-                g.DrawImage(src, new Rectangle(padX, padY, nw, nh));
-            }
-            return canvas;
-        }
-
         private void EnsurePlcSenderRunning()
         {
             if (_plcTask == null || _plcTask.IsCompleted)
@@ -733,8 +678,12 @@ namespace Project_CK
                     double Xw_off = (X_mm + 260);
                     double Yw_off = -(Y_mm + 200);
 
-                    if(Yw_off<-80)
-                    { Xw_off = Xw_off + 3; }    
+                    if (Yw_off > -60)
+                    {
+                        Xw_off = Xw_off - 10;
+                    }
+                    if (Yw_off > -80 && Yw_off < -60)
+                    { Xw_off = Xw_off - 5; }
                     short type = (short)act.ClassId;
                     int x_mm_dint = (int)Math.Round(Xw_off);
                     int y_mm_dint = (int)Math.Round(Yw_off);
@@ -881,35 +830,6 @@ namespace Project_CK
 
             return (Xw, Yw);
         }
-
-        // ===== Helpers nho nhỏ =====
-        private static double[] DoubleMatrixToArray(double[,] M)
-        {
-            int r = M.GetLength(0), c = M.GetLength(1);
-            var arr = new double[r * c];
-            int k = 0;
-            for (int i = 0; i < r; i++)
-                for (int j = 0; j < c; j++)
-                    arr[k++] = M[i, j];
-            return arr;
-        }
-        private static double[,] Transpose3x3(double[,] A)
-        {
-            return new double[,] {
-        { A[0,0], A[1,0], A[2,0] },
-        { A[0,1], A[1,1], A[2,1] },
-        { A[0,2], A[1,2], A[2,2] },
-    };
-        }
-        private static double[] MulMatVec(double[,] M, double[] v)
-        {
-            return new double[] {
-        M[0,0]*v[0] + M[0,1]*v[1] + M[0,2]*v[2],
-        M[1,0]*v[0] + M[1,1]*v[1] + M[1,2]*v[2],
-        M[2,0]*v[0] + M[2,1]*v[1] + M[2,2]*v[2],
-    };
-        }
-        private static double[] Negate(double[] v) => new double[] { -v[0], -v[1], -v[2] };
 
         private void SendDuePlcIfAny()
         {
@@ -1240,7 +1160,7 @@ namespace Project_CK
 
                 double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
                 int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
-                RotateZ(X_viewplc*0.9 , Y_viewplc*0.9 , Z_viewplc, thetaDeg: 0, out x_rotate, out y_rotate, out z_rotate);
+                RotateZ(X_viewplc * 0.9, Y_viewplc * 0.9, Z_viewplc, thetaDeg: 0, out x_rotate, out y_rotate, out z_rotate);
 
                 if (Status1 == 0)
                 {
@@ -1347,19 +1267,19 @@ namespace Project_CK
             var buf = new byte[1];
 
             int rc = plc.DBRead(db, byteOffset, 1, buf);
-            if (rc != 0) throw new Exception();
+
 
             // ✅ ĐÚNG: truyền mảng, byteIndex = 0 vì ta chỉ đọc 1 byte
             S7.SetBitAt(buf, 0, bitOffset, value);
 
             rc = plc.DBWrite(db, byteOffset, 1, buf);
-            if (rc != 0) throw new Exception();
+
         }
         public bool ReadBool(int db, int byteOffset, int bitOffset)
         {
             byte[] buf = new byte[1];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception();
+
 
             return S7.GetBitAt(buf, 0, bitOffset);
         }
@@ -1368,13 +1288,13 @@ namespace Project_CK
             byte[] buf = new byte[4];
             S7.SetRealAt(buf, 0, value);
             int rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception();
+
         }
         public float ReadReal(int db, int byteOffset)
         {
             byte[] buf = new byte[4];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception();
+
 
             return S7.GetRealAt(buf, 0);
         }
@@ -1383,13 +1303,13 @@ namespace Project_CK
             byte[] buf = new byte[4];
             S7.SetDIntAt(buf, 0, value);
             int rc = plc.DBWrite(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception();
+
         }
         public int ReadDInt(int db, int byteOffset)
         {
             byte[] buf = new byte[4];
             int rc = plc.DBRead(db, byteOffset, buf.Length, buf);
-            if (rc != 0) throw new Exception();
+
             return S7.GetDIntAt(buf, 0);
         }
         ////////////////////////////////
@@ -1426,12 +1346,12 @@ namespace Project_CK
             double z1 = (double)numericUpDown_z.Value;
             double x_rotate, y_rotate, z_rotate;
             RotateZ(x1 / 0.9, y1 / 0.9, z1, thetaDeg: 150, out x_rotate, out y_rotate, out z_rotate);
-            WriteReal(44, 0, (float)x_rotate);
-            WriteReal(44, 4, (float)y_rotate);
-            WriteReal(44, 8, (float)z_rotate);
-            //WriteReal(44, 0, (float)(x1));
-            //WriteReal(44, 4, (float)(y1));
-            //WriteReal(44, 8, (float)z1);
+            //WriteReal(44, 0, (float)x_rotate);
+            //WriteReal(44, 4, (float)y_rotate);
+            //WriteReal(44, 8, (float)z_rotate);
+            WriteReal(44, 0, (float)(x1));
+            WriteReal(44, 4, (float)(y1));
+            WriteReal(44, 8, (float)z1);
 
 
 
@@ -1501,9 +1421,11 @@ namespace Project_CK
             WriteBool(33, 0, 0, true);
             WriteBool(78, 0, 0, false);
             WriteBool(78, 0, 0, true);
-            Thread.Sleep(10000);
+            Thread.Sleep(8000);
             WriteBool(46, 0, 0, false);
             WriteBool(46, 0, 0, true);
+            btn_auto.ForeColor = Color.Green;
+            btn_auto.BackColor = Color.Black;
 
         }
 
@@ -1518,12 +1440,25 @@ namespace Project_CK
             WriteBool(81, 0, 0, false);
             WriteBool(81, 0, 0, true);
             _manualMode = !_manualMode; // đổi trạng thái
-
             // bật hoặc tắt viewplc theo trạng thái
             if (_manualMode)
+            {
                 plcTimer.Tick += viewplc;
+                button_manual.ForeColor = Color.Green;       // màu chữ
+                button_manual.BackColor = Color.Black;
+                button_manual.Text = "MANUAL ";
+                btn_auto.ForeColor = Color.White;
+                btn_auto.BackColor = Color.Black;
+
+            }// màu nền
             else
+            {
                 plcTimer.Tick -= viewplc;
+                button_manual.ForeColor = Color.White;       // màu chữ
+                button_manual.BackColor = Color.Black;   // màu nền
+                button_manual.Text = "MANUAL ";
+            }
+
         }
 
         private void btn_emergency(object sender, EventArgs e)
@@ -1534,6 +1469,127 @@ namespace Project_CK
                 return;
             }
             WriteBool(45, 0, 1, false);
+        }
+
+        private void btn_x_add_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc + 1 / 0.9;
+            y_jog = Y_viewplc;
+            z_jog = Z_viewplc;
+            WriteReal(44, 0, (float)x_jog );
+            WriteReal(44, 4, (float)y_jog);
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
+
+        }
+
+        private void btn_y_sub_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc;
+            y_jog = Y_viewplc - 1 / 0.9;
+            z_jog = Z_viewplc;
+            WriteReal(44, 0, (float)x_jog);
+            WriteReal(44, 4, (float)y_jog);
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
+        }
+
+        private void btn_y_add_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc;
+            y_jog = Y_viewplc + 1 / 0.9;
+            z_jog = Z_viewplc;
+            WriteReal(44, 0, (float)x_jog);
+            WriteReal(44, 4, (float)y_jog );
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
+        }
+
+        private void btn_x_sub_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc - 1/0.9;
+            y_jog = Y_viewplc;
+            z_jog = Z_viewplc;
+            WriteReal(44, 0, (float)x_jog );
+            WriteReal(44, 4, (float)y_jog);
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
+        }
+
+        private void btn_z_sub_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc;
+            y_jog = Y_viewplc;
+            z_jog = Z_viewplc-1;
+            WriteReal(44, 0, (float)x_jog);
+            WriteReal(44, 4, (float)y_jog);
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
+        }
+
+        private void btn_z_add_click(object sender, EventArgs e)
+        {
+            double x_jog, y_jog, z_jog;
+            byte[] buf = new byte[12];
+            int result = plc.DBRead(111, 0, buf.Length, buf);
+            float theta1 = S7.GetRealAt(buf, 0);
+            float theta2 = S7.GetRealAt(buf, 4);
+            float theta3 = S7.GetRealAt(buf, 8);
+            double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
+            int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
+            x_jog = X_viewplc;
+            y_jog = Y_viewplc;
+            z_jog = Z_viewplc + 1;
+            WriteReal(44, 0, (float)x_jog);
+            WriteReal(44, 4, (float)y_jog);
+            WriteReal(44, 8, (float)z_jog);
+            WriteBool(47, 0, 0, false);
+            WriteBool(47, 0, 0, true);
         }
     }
 }

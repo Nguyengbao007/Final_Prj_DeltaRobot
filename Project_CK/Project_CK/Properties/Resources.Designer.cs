@@ -59,5 +59,25 @@ namespace Project_CK.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Logo_HCMUTE_Corel_white_background {
+            get {
+                object obj = ResourceManager.GetObject("Logo HCMUTE-Corel-white background", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap z6917327876486_4694185da89f8186e50ede9aa8274588 {
+            get {
+                object obj = ResourceManager.GetObject("z6917327876486_4694185da89f8186e50ede9aa8274588", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }
