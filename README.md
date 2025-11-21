@@ -15,11 +15,11 @@ trình tự động hóa trong công nghiệp.
 
 ## 👨‍🎓 Thông tin sinh viên & Giảng viên hướng dẫn
 
--   **Họ và tên:** Nguyễn Gia Bảo -- MSSV: 21151073\
--   **Họ và tên:** Nguyễn Xuân Hoàng -- MSSV: 21151459\
--   **Ngành:** Kỹ thuật Điều khiển & Tự động hoá\
--   **Khoa:** Điện -- Điện Tử (Khoá K21)\
--   **Giảng viên hướng dẫn:** TS. Trần Mạnh Sơn\
+-   **Họ và tên:** Nguyễn Gia Bảo -- MSSV: 21151073
+-   **Họ và tên:** Nguyễn Xuân Hoàng -- MSSV: 21151459
+-   **Ngành:** Kỹ thuật Điều khiển & Tự động hoá
+-   **Khoa:** Điện -- Điện Tử (Khoá K21)
+-   **Giảng viên hướng dẫn:** TS. Trần Mạnh Sơn
 -   **Trường:** Đại học Sư Phạm Kỹ Thuật TP.HCM (HCMUTE)
 
 ------------------------------------------------------------------------
@@ -33,13 +33,13 @@ chọn nhờ khả năng làm việc tốc độ cao, gia tốc lớn, độ l�
 phù hợp với dây chuyền đóng gói thực phẩm.
 
 Hệ thống được xây dựng theo hướng mô phỏng ứng dụng thực tế, gồm các
-khối chính: - **Cụm cơ khí Robot Delta** \
-- **Bộ điều khiển:** PLC **Siemens S7-1200 (CPU 1214C DC/DC/DC)**.\
+khối chính: - **Cụm cơ khí Robot Delta** 
+- **Bộ điều khiển:** PLC **Siemens S7-1200 (CPU 1214C DC/DC/DC)**.
 - **Truyền động:** 3 **servo Mitsubishi HF-KP13B** kết hợp **driver
-MR-J3-10A**, điều khiển bằng xung PTO từ PLC.\
-- **Thị giác máy:** camera **Logitech C615** thu ảnh băng tải.\
+MR-J3-10A**, điều khiển bằng xung PTO từ PLC.
+- **Thị giác máy:** camera **Logitech C615** thu ảnh băng tải.
 - **AI nhận dạng:** mô hình **YOLOv8** (ONNX) phát hiện bánh, lấy tâm
-vật thể và quy đổi toạ độ phục vụ gắp.\
+vật thể và quy đổi toạ độ phục vụ gắp.
 - **Phần mềm điều khiển -- giám sát:** ứng dụng **C# WinForms** để hiển
 thị camera, kết nối PLC (Snap7), điều khiển jog và gửi toạ độ XYZ.
 
