@@ -369,7 +369,7 @@ namespace Project_CK
             EnsureYoloLoaded();          // nạp YOLO nếu chưa
             EnsurePlcSenderRunning();    // khởi chạy luồng gửi PLC nền
 
-            _cap = new VideoCapture(1, VideoCapture.API.DShow);
+            _cap = new VideoCapture(0, VideoCapture.API.DShow);
             try { _cap.Set(CapProp.FrameWidth, WIDTH); } catch { }
             try { _cap.Set(CapProp.FrameHeight, HEIGHT); } catch { }
             try { _cap.Set(CapProp.Fps, TARGET_FPS); } catch { }
@@ -675,14 +675,14 @@ namespace Project_CK
                     PointF p1920 = MapBackPoint_ResizedToOrig(act.Center, _lastResizeMeta);
                     var (X_mm, Y_mm) = Pixel1920ToMm_UsingK(p1920.X, p1920.Y);
                     // Offset theo hệ của bạn
-                    double Xw_off = (X_mm + 260);
+                    double Xw_off = (X_mm + 255);
                     double Yw_off = -(Y_mm + 200);
 
                     if (Yw_off > -60)
                     {
-                        Xw_off = Xw_off - 10;
+                        Xw_off = Xw_off - 15;
                     }
-                    if (Yw_off > -80 && Yw_off < -60)
+                    if (Yw_off > -95 && Yw_off < -60)
                     { Xw_off = Xw_off - 5; }
                     short type = (short)act.ClassId;
                     int x_mm_dint = (int)Math.Round(Xw_off);
@@ -1484,7 +1484,7 @@ namespace Project_CK
             x_jog = X_viewplc + 1 / 0.9;
             y_jog = Y_viewplc;
             z_jog = Z_viewplc;
-            WriteReal(44, 0, (float)x_jog );
+            WriteReal(44, 0, (float)x_jog);
             WriteReal(44, 4, (float)y_jog);
             WriteReal(44, 8, (float)z_jog);
             WriteBool(47, 0, 0, false);
@@ -1526,7 +1526,7 @@ namespace Project_CK
             y_jog = Y_viewplc + 1 / 0.9;
             z_jog = Z_viewplc;
             WriteReal(44, 0, (float)x_jog);
-            WriteReal(44, 4, (float)y_jog );
+            WriteReal(44, 4, (float)y_jog);
             WriteReal(44, 8, (float)z_jog);
             WriteBool(47, 0, 0, false);
             WriteBool(47, 0, 0, true);
@@ -1542,10 +1542,10 @@ namespace Project_CK
             float theta3 = S7.GetRealAt(buf, 8);
             double X_viewplc = 0, Y_viewplc = 0, Z_viewplc = 0;
             int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
-            x_jog = X_viewplc - 1/0.9;
+            x_jog = X_viewplc - 1 / 0.9;
             y_jog = Y_viewplc;
             z_jog = Z_viewplc;
-            WriteReal(44, 0, (float)x_jog );
+            WriteReal(44, 0, (float)x_jog);
             WriteReal(44, 4, (float)y_jog);
             WriteReal(44, 8, (float)z_jog);
             WriteBool(47, 0, 0, false);
@@ -1564,7 +1564,7 @@ namespace Project_CK
             int Status1 = delta_calcForward(theta1 / 10, theta2 / 10, theta3 / 10, ref X_viewplc, ref Y_viewplc, ref Z_viewplc);
             x_jog = X_viewplc;
             y_jog = Y_viewplc;
-            z_jog = Z_viewplc-1;
+            z_jog = Z_viewplc - 1;
             WriteReal(44, 0, (float)x_jog);
             WriteReal(44, 4, (float)y_jog);
             WriteReal(44, 8, (float)z_jog);
@@ -1590,6 +1590,17 @@ namespace Project_CK
             WriteReal(44, 8, (float)z_jog);
             WriteBool(47, 0, 0, false);
             WriteBool(47, 0, 0, true);
+        }
+
+        private void btn_hut_click(object sender, EventArgs e)
+        {
+            
+            WriteBool(17, 0, 0, true);
+        }
+
+        private void btn_nha_click(object sender, EventArgs e)
+        {
+            WriteBool(17, 0, 0, false);
         }
     }
 }

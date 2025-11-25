@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             button1 = new Button();
             label1 = new Label();
             pictureBox1 = new PictureBox();
@@ -42,17 +43,25 @@
             label9 = new Label();
             label10 = new Label();
             label11 = new Label();
+            textBox_tendangnhap = new TextBox();
+            groupBox1 = new GroupBox();
+            textBox_matkhau = new TextBox();
+            label13 = new Label();
+            label12 = new Label();
+            pictureBox3 = new PictureBox();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            groupBox1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             SuspendLayout();
             // 
             // button1
             // 
-            button1.Location = new Point(677, 316);
+            button1.Location = new Point(137, 94);
             button1.Name = "button1";
             button1.Size = new Size(80, 31);
             button1.TabIndex = 0;
-            button1.Text = "Next";
+            button1.Text = "LOGIN";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
@@ -141,7 +150,7 @@
             // 
             label7.AutoSize = true;
             label7.Font = new Font("Calibri", 14.25F, FontStyle.Bold);
-            label7.Location = new Point(75, 227);
+            label7.Location = new Point(454, 266);
             label7.Name = "label7";
             label7.Size = new Size(56, 23);
             label7.TabIndex = 9;
@@ -151,17 +160,18 @@
             // 
             label8.AutoSize = true;
             label8.Font = new Font("Calibri", 14.25F, FontStyle.Bold);
-            label8.Location = new Point(126, 227);
+            label8.Location = new Point(505, 266);
             label8.Name = "label8";
-            label8.Size = new Size(294, 23);
+            label8.Size = new Size(302, 23);
             label8.TabIndex = 10;
-            label8.Text = "NGUYỄN GIA BẢO             - 21151073";
+            label8.Text = "NGUYỄN GIA BẢO               - 21151073";
+            label8.Click += label8_Click;
             // 
             // label9
             // 
             label9.AutoSize = true;
             label9.Font = new Font("Calibri", 14.25F, FontStyle.Bold);
-            label9.Location = new Point(126, 246);
+            label9.Location = new Point(505, 285);
             label9.Name = "label9";
             label9.Size = new Size(301, 23);
             label9.TabIndex = 11;
@@ -171,7 +181,7 @@
             // 
             label10.AutoSize = true;
             label10.Font = new Font("Calibri", 14.25F, FontStyle.Bold);
-            label10.Location = new Point(75, 280);
+            label10.Location = new Point(454, 319);
             label10.Name = "label10";
             label10.Size = new Size(62, 23);
             label10.TabIndex = 12;
@@ -182,18 +192,78 @@
             // 
             label11.AutoSize = true;
             label11.Font = new Font("Calibri", 14.25F, FontStyle.Bold);
-            label11.Location = new Point(126, 280);
+            label11.Location = new Point(505, 319);
             label11.Name = "label11";
             label11.Size = new Size(181, 23);
             label11.TabIndex = 13;
             label11.Text = "TS. TRẦN MẠNH SƠN";
+            // 
+            // textBox_tendangnhap
+            // 
+            textBox_tendangnhap.Location = new Point(137, 24);
+            textBox_tendangnhap.Name = "textBox_tendangnhap";
+            textBox_tendangnhap.Size = new Size(134, 25);
+            textBox_tendangnhap.TabIndex = 14;
+            // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(textBox_matkhau);
+            groupBox1.Controls.Add(label13);
+            groupBox1.Controls.Add(label12);
+            groupBox1.Controls.Add(textBox_tendangnhap);
+            groupBox1.Controls.Add(button1);
+            groupBox1.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            groupBox1.Location = new Point(111, 262);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(277, 128);
+            groupBox1.TabIndex = 15;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "ĐĂNG NHẬP";
+            // 
+            // textBox_matkhau
+            // 
+            textBox_matkhau.Location = new Point(137, 63);
+            textBox_matkhau.Name = "textBox_matkhau";
+            textBox_matkhau.Size = new Size(134, 25);
+            textBox_matkhau.TabIndex = 17;
+            // 
+            // label13
+            // 
+            label13.AutoSize = true;
+            label13.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label13.Location = new Point(56, 71);
+            label13.Name = "label13";
+            label13.Size = new Size(71, 17);
+            label13.TabIndex = 16;
+            label13.Text = "Mật Khẩu:";
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label12.Location = new Point(23, 32);
+            label12.Name = "label12";
+            label12.Size = new Size(108, 17);
+            label12.TabIndex = 15;
+            label12.Text = "Tên Đăng Nhập:";
+            // 
+            // pictureBox3
+            // 
+            pictureBox3.Image = (Image)resources.GetObject("pictureBox3.Image");
+            pictureBox3.Location = new Point(-1, 262);
+            pictureBox3.Name = "pictureBox3";
+            pictureBox3.Size = new Size(107, 108);
+            pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox3.TabIndex = 16;
+            pictureBox3.TabStop = false;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.ButtonHighlight;
-            ClientSize = new Size(769, 350);
+            ClientSize = new Size(818, 424);
+            Controls.Add(groupBox1);
             Controls.Add(label11);
             Controls.Add(label10);
             Controls.Add(label9);
@@ -207,12 +277,15 @@
             Controls.Add(pictureBox2);
             Controls.Add(pictureBox1);
             Controls.Add(label1);
-            Controls.Add(button1);
+            Controls.Add(pictureBox3);
             Name = "Form1";
             Text = "Form1";
             Load += Form1_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -233,5 +306,11 @@
         private Label label9;
         private Label label10;
         private Label label11;
+        private TextBox textBox_tendangnhap;
+        private GroupBox groupBox1;
+        private Label label12;
+        private TextBox textBox_matkhau;
+        private Label label13;
+        private PictureBox pictureBox3;
     }
 }

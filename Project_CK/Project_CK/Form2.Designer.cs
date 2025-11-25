@@ -106,6 +106,8 @@
             label16 = new Label();
             label15 = new Label();
             groupBox10 = new GroupBox();
+            button_hut = new Button();
+            button_nha = new Button();
             groupBox4.SuspendLayout();
             groupBox6.SuspendLayout();
             groupBox11.SuspendLayout();
@@ -200,6 +202,8 @@
             // 
             // groupBox6
             // 
+            groupBox6.Controls.Add(button_nha);
+            groupBox6.Controls.Add(button_hut);
             groupBox6.Controls.Add(groupBox11);
             groupBox6.Controls.Add(btn_home);
             groupBox6.Controls.Add(button_manual);
@@ -324,7 +328,7 @@
             // 
             // btn_exc
             // 
-            btn_exc.Location = new Point(199, 231);
+            btn_exc.Location = new Point(199, 230);
             btn_exc.Name = "btn_exc";
             btn_exc.Size = new Size(85, 36);
             btn_exc.TabIndex = 19;
@@ -915,6 +919,26 @@
             groupBox10.TabStop = false;
             groupBox10.Text = "AUTO";
             // 
+            // button_hut
+            // 
+            button_hut.Location = new Point(418, 36);
+            button_hut.Name = "button_hut";
+            button_hut.Size = new Size(85, 36);
+            button_hut.TabIndex = 27;
+            button_hut.Text = "GRIP";
+            button_hut.UseVisualStyleBackColor = false;
+            button_hut.Click += btn_hut_click;
+            // 
+            // button_nha
+            // 
+            button_nha.Location = new Point(505, 36);
+            button_nha.Name = "button_nha";
+            button_nha.Size = new Size(85, 36);
+            button_nha.TabIndex = 28;
+            button_nha.Text = "RELEASE";
+            button_nha.UseVisualStyleBackColor = false;
+            button_nha.Click += btn_nha_click;
+            // 
             // Form2
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -1034,5 +1058,7 @@
         private Button button_z_add;
         private Button button_x_sub;
         private GroupBox groupBox11;
+        private Button button_nha;
+        private Button button_hut;
     }
 }
