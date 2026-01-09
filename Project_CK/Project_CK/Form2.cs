@@ -17,7 +17,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Emgu.CV.Util;
-//using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using WinTimer = System.Windows.Forms.Timer;
 
 
@@ -30,7 +29,7 @@ namespace Project_CK
         public double re = 310;
         public double rf = 150;
         const Double sqrt3 = 1.732;
-        const Double pi = 3.141593;    // PI
+        const Double pi = 3.141593;   
         const Double sin120 = 0.8660254;
         const Double cos120 = -0.5;
         const Double tan60 = 1.732;
@@ -44,7 +43,7 @@ namespace Project_CK
         private System.Windows.Forms.Timer _uiTimer;
         private Bitmap _latestBmp; // dùng Interlocked/lock để đổ
         private readonly string[] _labels = { "green_cake", "red_cake", "yellow_cake" };
-        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\8-11\Project_CK\Project_CK\best.onnx";
+        private const string MODEL_PATH = @"C:\Users\Hoang\Documents\2-12\Project_CK\Project_CK\best.onnx";
         private WinTimer plcTimer;
         private void EnsureYoloLoaded()
         {
@@ -204,7 +203,7 @@ namespace Project_CK
             plcTimer = new WinTimer();
             plcTimer.Interval = 100;
             plcTimer.Tick += viewvat;   // đếm vật vẫn chạy liên tục
-            plcTimer.Start();
+            plcTimer.Start();   
 
         }
         ////////////////////////////////
@@ -213,15 +212,13 @@ namespace Project_CK
         {
 
 
-            Double y1 = -0.5 * 0.57735 * ff; // f/2 * tg 30     A
-            y0 -= 0.5 * 0.57735 * ee;    // shift center to edge    B
-                                         // z = a + b*y
-            Double a = (x0 * x0 + y0 * y0 + z0 * z0 + rf * rf - re * re - y1 * y1) / (2 * z0);  //C
-            Double b = (y1 - y0) / z0;      //D
-                                            // discriminant
-            Double d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf);//G
+            Double y1 = -0.5 * 0.57735 * ff;     
+            y0 -= 0.5 * 0.57735 * ee;      
+            Double a = (x0 * x0 + y0 * y0 + z0 * z0 + rf * rf - re * re - y1 * y1) / (2 * z0);  
+            Double b = (y1 - y0) / z0;      
+            Double d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf);//delta    
             if (d < 0) return -1; // non-existing point
-            Double yj = (y1 - a * b - Math.Sqrt(d)) / (b * b + 1); // choosing outer point H
+            Double yj = (y1 - a * b - Math.Sqrt(d)) / (b * b + 1); 
             Double zj = a + b * yj; /// I
             theta = 180.0 * Math.Atan(-zj / (y1 - yj)) / pi + ((yj > y1) ? 180.0 : 0.0);
             return 0;
@@ -230,8 +227,8 @@ namespace Project_CK
         {
             theta1 = theta2 = theta3 = 0;
             int status = delta_calcAngleYZ(x0, y0, z0, ref theta1);
-            if (status == 0) status = delta_calcAngleYZ(x0 * cos120 + y0 * sin120, y0 * cos120 - x0 * sin120, z0, ref theta2);  // rotate coords to +120 deg
-            if (status == 0) status = delta_calcAngleYZ(x0 * cos120 - y0 * sin120, y0 * cos120 + x0 * sin120, z0, ref theta3);  // rotate coords to -120 deg
+            if (status == 0) status = delta_calcAngleYZ(x0 * cos120 + y0 * sin120, y0 * cos120 - x0 * sin120, z0, ref theta2); 
+            if (status == 0) status = delta_calcAngleYZ(x0 * cos120 - y0 * sin120, y0 * cos120 + x0 * sin120, z0, ref theta3);  
             return status;
         }
         int delta_calcForward(Double theta1, Double theta2, Double theta3, ref Double x0, ref Double y0, ref Double z0)
@@ -243,16 +240,16 @@ namespace Project_CK
             theta2 *= dtr;
             theta3 *= dtr;
 
-            Double y1 = -(t + rf * Math.Cos(theta1));
-            Double z1 = -rf * Math.Sin(theta1);
+            Double y1 = -(t + rf * Math.Cos(theta1));//toạ độ J1
+            Double z1 = -rf * Math.Sin(theta1);//toạ độ J1
 
-            Double y2 = (t + rf * Math.Cos(theta2)) * sin30;
-            Double x2 = y2 * tan60;
-            Double z2 = -rf * Math.Sin(theta2);
+            Double y2 = (t + rf * Math.Cos(theta2)) * sin30;//toạ độ J2
+            Double x2 = y2 * tan60;//toạ độ J2
+            Double z2 = -rf * Math.Sin(theta2);//toạ độ J2
 
-            Double y3 = (t + rf * Math.Cos(theta3)) * sin30;
-            Double x3 = -y3 * tan60;
-            Double z3 = -rf * Math.Sin(theta3);
+            Double y3 = (t + rf * Math.Cos(theta3)) * sin30;//toạ độ J3
+            Double x3 = -y3 * tan60;//toạ độ J3
+            Double z3 = -rf * Math.Sin(theta3);//toạ độ J3
 
             Double dnm = (y2 - y1) * x3 - (y3 - y1) * x2;
 
@@ -274,7 +271,7 @@ namespace Project_CK
             Double c = (b2 - y1 * dnm) * (b2 - y1 * dnm) + b1 * b1 + dnm * dnm * (z1 * z1 - re * re);
 
             // discriminant
-            Double d = b * b - (Double)4.0 * a * c;
+            Double d = b * b - (Double)4.0 * a * c;//delta
             if (d < 0)
             {
                 return -1; // non-existing point
@@ -361,23 +358,22 @@ namespace Project_CK
         ////////////////////////////////
         ////////////////////////////////
 
-        // ===================== Handler: Start Video (đã tích hợp zoom) =====================
         private void btn_startvideo_Click(object sender, EventArgs e)
         {
             if (_cap != null) return;
 
             EnsureYoloLoaded();          // nạp YOLO nếu chưa
             EnsurePlcSenderRunning();    // khởi chạy luồng gửi PLC nền
-
+            // mở camera và cấu hình cho camera
             _cap = new VideoCapture(0, VideoCapture.API.DShow);
             try { _cap.Set(CapProp.FrameWidth, WIDTH); } catch { }
             try { _cap.Set(CapProp.FrameHeight, HEIGHT); } catch { }
             try { _cap.Set(CapProp.Fps, TARGET_FPS); } catch { }
             try { _cap.Set(CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G')); } catch { }
 
-            _cts = new CancellationTokenSource();
+            _cts = new CancellationTokenSource();// dùng để dừng vòng lặp capture
 
-            // 👉 Zoom nhẹ 1.2x (bạn có thể đổi: 1.1f, 1.3f, 1.5f, ...)
+            //  Zoom  1.2x 
             const float ZOOM_FACTOR = 1.2f;
 
             _captureTask = Task.Run(() =>
@@ -387,11 +383,11 @@ namespace Project_CK
                 {
                     if (!_cap.Read(frame) || frame.IsEmpty) { Thread.Sleep(1); continue; }
 
-                    using (var rawBmp = frame.ToBitmap())
-                    using (var zoomBmp = ApplyCenterZoom(rawBmp, ZOOM_FACTOR))  // <— áp dụng ZOOM ở đây
+                    using (var rawBmp = frame.ToBitmap()) // Bitmap gốc từ camera
+                    using (var zoomBmp = ApplyCenterZoom(rawBmp, ZOOM_FACTOR))  // áp dụng ZOOM ở đây (Cắt ở giữa + phóng lên lại size gốc)
                     using (var srcBmp = (zoomBmp.Width == 640 && zoomBmp.Height == 640)
                                          ? (Bitmap)zoomBmp.Clone()
-                                         : PadToSquare640WithMeta(zoomBmp, out _lastResizeMeta)) // meta map ngược
+                                         : PadToSquare640WithMeta(zoomBmp, out _lastResizeMeta)) // meta map ngược 640 → 1920
                     {
                         // nếu nguồn vốn đã là 640x640 thì set meta identity để pipeline thống nhất
                         if (zoomBmp.Width == 640 && zoomBmp.Height == 640)
@@ -408,7 +404,7 @@ namespace Project_CK
                             };
                         }
 
-                        var drawBmp = (Bitmap)srcBmp.Clone();
+                        var drawBmp = (Bitmap)srcBmp.Clone();//bản copy để vẽ ROI, box, text, track mà không đụng tới srcBmp dùng cho xử lý
 
                         // 1) Khởi tạo ROI một lần (trên khung 640×640)
                         if (_roiEnabled && _roiDisp.Width <= 0)
@@ -420,7 +416,7 @@ namespace Project_CK
                             _roiDisp = new Rectangle(x, y, w, h);
                         }
 
-                        // 2) Vẽ ROI
+                        //  2) Vẽ ROI lên frame
                         using (var gRoi = Graphics.FromImage(drawBmp))
                         using (var roiPen = new Pen(Color.Lime, 2))
                         {
@@ -439,17 +435,17 @@ namespace Project_CK
                                 {
                                     using (var roiBmp = srcBmp.Clone(roi, System.Drawing.Imaging.PixelFormat.Format24bppRgb))
                                     {
-                                        var detsRoi = _yolo.Infer(roiBmp);
+                                        var detsRoi = _yolo.Infer(roiBmp);//Yolo chỉ lấy ảnh trong roi để  detect
 
                                         // dịch box ROI-local -> ảnh 640 toàn cục
                                         dets = detsRoi.Select(d =>
                                             new YoloOnnxSafe.Det(
                                                 new RectangleF(d.Rect.X + roi.Left, d.Rect.Y + roi.Top, d.Rect.Width, d.Rect.Height),
-                                                d.Score, d.ClassId, d.Label)
+                                                d.Score, d.ClassId, d.Label)// Đưa về toạ độ toàn cục chứ không dùng toạ độ trong roi
                                         ).ToList();
                                     }
 
-                                    // chỉ giữ box nằm TRỌN ROI
+                                    // chỉ giữ box nằm gọn trong ROI
                                     dets = dets.Where(d =>
                                     {
                                         int x1 = (int)Math.Floor(d.Rect.Left);
@@ -499,7 +495,7 @@ namespace Project_CK
         }
 
 
-        // ===================== Helper: Zoom số (center-crop + resize) =====================
+        // =====================  Zoom số (center-crop + resize) =====================
         private static Bitmap ApplyCenterZoom(Bitmap src, float zoomFactor)
         {
             // zoomFactor >= 1.0f (1.2f = phóng to nhẹ)
@@ -533,9 +529,9 @@ namespace Project_CK
         }
         private void EnsurePlcSenderRunning()
         {
-            if (_plcTask == null || _plcTask.IsCompleted)
+            if (_plcTask == null || _plcTask.IsCompleted)// kiểm tra
             {
-                _plcCts = new CancellationTokenSource();
+                _plcCts = new CancellationTokenSource();// tạo task để dừng chạy nền
                 _plcTask = Task.Run(() =>
                 {
                     var buf = new byte[14]; // 2 DINT (8 byte) + 1 INT (2 byte)
@@ -553,7 +549,7 @@ namespace Project_CK
 
                                 // Viết 1 lần cả block để tránh ghi đè “nguyên byte”
                                 int rc = plc.DBWrite(DB_NUMBER, 0, buf.Length, buf);
-                                if (rc != 0) System.Diagnostics.Debug.WriteLine("DBWrite failed: " + plc.ErrorText(rc));
+                                //if (rc != 0) System.Diagnostics.Debug.WriteLine("DBWrite failed: " + plc.ErrorText(rc));//kiểm tra lỗi
                             }
                             else Thread.Sleep(2);
                         }
@@ -568,7 +564,7 @@ namespace Project_CK
 
             var matched = new HashSet<int>();
 
-            // --- 1) Gán detection -> track ---
+            // --- 1) Gán detection -> track --- // Với mỗi detection Tính tâm c Cùng class Khoảng cách tâm nhỏ nhất
             foreach (var d in dets)
             {
                 var c = new PointF(d.Rect.X + d.Rect.Width / 2f, d.Rect.Y + d.Rect.Height / 2f);
@@ -583,7 +579,7 @@ namespace Project_CK
                     float dist = (float)Math.Sqrt(dx * dx + dy * dy);
                     if (dist < bestDist) { bestDist = dist; bestId = kv.Key; }
                 }
-
+                //Nếu khoảng cách ≤ ngưỡng MATCH_MAX_DIST_PX → update track cũ Nếu không → tạo track mới
                 if (bestDist <= MATCH_MAX_DIST_PX && bestId >= 0)
                 {
                     var t = _tracks[bestId];
@@ -624,7 +620,7 @@ namespace Project_CK
 
                 if (!matched.Contains(id))
                     t.Missed = Math.Min(t.Missed + 1, 1_000_000);
-
+                //Nếu track đang nhìn thấy (Missed == 0) và tâm nằm trong ROIThêm id vào _sendQueue Đánh dấu id đã queued (_queuedIds)
                 if (t.Missed == 0 && InRoi(t.Center))
                 {
                     if (!_queuedIds.Contains(id))
@@ -650,7 +646,7 @@ namespace Project_CK
                 }
             }
 
-            // Nếu chưa có vật đang phục vụ → lấy từ FIFO
+            // Nếu chưa có vật đang phục vụ → lấy từ FIFO chọn track còn sống & còn trong ROI làm _activeTrackId
             while (_activeTrackId == null && _sendQueue.Count > 0)
             {
                 int nextId = _sendQueue.Dequeue();
@@ -721,7 +717,7 @@ namespace Project_CK
 
 
 
-
+        //vẽ box + label + tọa độ
 
         private void DrawTracks(Bitmap drawBmp)
         {
@@ -731,20 +727,20 @@ namespace Project_CK
             using var coordFont = new Font("Segoe UI", 9f);
 
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
+            //Chuẩn bị bút, font.v
             foreach (var t in _tracks.Values.Where(tt => tt.Missed == 0))
             {
                 g.DrawRectangle(pen, t.Rect.X, t.Rect.Y, t.Rect.Width, t.Rect.Height);
-
+                //Chỉ vẽ track đang thấy (Missed == 0)
                 using (var dot = new SolidBrush(Color.Red))
                     g.FillEllipse(dot, t.Center.X - 3f, t.Center.Y - 3f, 6f, 6f);
-
+                //Vẽ 1 chấm đỏ ở tâm box.
                 string labelText = t.Label;
                 float lx = t.Rect.X;
                 float ly = Math.Max(0, t.Rect.Y - labelFont.Height);
                 g.DrawString(labelText, labelFont, Brushes.Black, lx + 1, ly + 1);
                 g.DrawString(labelText, labelFont, Brushes.Yellow, lx, ly);
-
+                //Vẽ label (tên class) ở trên box Vẽ tọa độ pixel tâm (X,Y) Căn lại vị trí text để không bị tràn khỏi ảnh
                 string coordText = $"({(int)t.Center.X},{(int)t.Center.Y})";
                 float tx = t.Center.X + 8f, ty = t.Center.Y - 8f;
                 var s = g.MeasureString(coordText, coordFont);
@@ -757,7 +753,7 @@ namespace Project_CK
             }
         }
 
-
+        //dừng toàn bộ hệ thống
         private void StopEverything()
         {
             try { _uiTimer?.Stop(); _uiTimer?.Dispose(); _uiTimer = null; } catch { }
@@ -777,6 +773,7 @@ namespace Project_CK
             _tracks.Clear(); _nextTrackId = 1;
         }
         ///10_15
+        /////Tính scale & padding giống letterbox YOLO.
         private static Bitmap PadToSquare640WithMeta(Bitmap raw, out ResizeMeta meta)
         {
             int origW = raw.Width, origH = raw.Height;
@@ -789,7 +786,7 @@ namespace Project_CK
             int drawH = (int)Math.Round(origH * scale);
             int padX = (newW - drawW) / 2;
             int padY = (newH - drawH) / 2;
-
+            //Tạo ảnh 640×640 nền đen, vẽ ảnh gốc đã scale vào giữa.
             var dst = new Bitmap(newW, newH, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             using (var g = Graphics.FromImage(dst))
             {
@@ -799,7 +796,7 @@ namespace Project_CK
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
                 g.DrawImage(raw, new Rectangle(padX, padY, drawW, drawH));
             }
-
+            ///Scale, PadX, PadY để map ngược 640 → ảnh gốc
             meta = new ResizeMeta { OrigW = origW, OrigH = origH, NewW = newW, NewH = newH, Scale = scale, PadX = padX, PadY = padY };
             return dst;
         }
@@ -961,7 +958,7 @@ namespace Project_CK
         ////////////////////////////////
         public class YoloOnnxSafe
         {
-            public record Det(RectangleF Rect, float Score, int ClassId, string Label);
+            public record Det(RectangleF Rect, float Score, int ClassId, string Label);//Rect : Bounding box, Score: độ tin cậy , ClassId:ID lớp, Label: tên lớp
 
             private readonly InferenceSession _sess;
             private readonly int _inpW, _inpH;
@@ -1346,12 +1343,12 @@ namespace Project_CK
             double z1 = (double)numericUpDown_z.Value;
             double x_rotate, y_rotate, z_rotate;
             RotateZ(x1 / 0.9, y1 / 0.9, z1, thetaDeg: 150, out x_rotate, out y_rotate, out z_rotate);
-            //WriteReal(44, 0, (float)x_rotate);
-            //WriteReal(44, 4, (float)y_rotate);
-            //WriteReal(44, 8, (float)z_rotate);
-            WriteReal(44, 0, (float)(x1));
-            WriteReal(44, 4, (float)(y1));
-            WriteReal(44, 8, (float)z1);
+            WriteReal(44, 0, (float)x_rotate);
+            WriteReal(44, 4, (float)y_rotate);
+            WriteReal(44, 8, (float)z_rotate);
+            //WriteReal(44, 0, (float)(x1));
+            //WriteReal(44, 4, (float)(y1));
+            //WriteReal(44, 8, (float)z1);
 
 
 
@@ -1421,7 +1418,7 @@ namespace Project_CK
             WriteBool(33, 0, 0, true);
             WriteBool(78, 0, 0, false);
             WriteBool(78, 0, 0, true);
-            Thread.Sleep(8000);
+            Thread.Sleep(10000);
             WriteBool(46, 0, 0, false);
             WriteBool(46, 0, 0, true);
             btn_auto.ForeColor = Color.Green;
